@@ -53,3 +53,4 @@ supabase/.temp/
 *.fdb_latexmk
 .claude/cache/
 .claude/tmp/
+.env*.local

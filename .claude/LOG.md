@@ -15,30 +15,46 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 ## Last session
 
 **Date:** 2026-04-27
-**Phase:** 1 (model research) — completed pending user review. Phase 0 also completed earlier this session.
+**Phase:** 1.5 (infra + CI/CD) — **production live**. Phases 0, 1 completed earlier same session.
 
-**What got done in Phase 1:**
-- Live web research: April 2026 pricing/benchmarks/latency for Claude Sonnet/Haiku, Gemini 2.5 Flash + Flash-Lite, GPT-4o mini, GPT-4.1 mini, DeepSeek V3.2/V4, Mistral Small 3.1, Grok 3 Mini, Qwen3 32B.
-- Vercel AI Gateway confirmed as routing layer: zero markup, automatic failover, `provider/model` strings, BYOK supported.
-- NOTES.md `## Models` section filled: workload→model mapping, comparison table, scoring cost model at 4.5M calls/month, A/B + drift policy, what we did NOT pick and why, sources.
+**Production state:**
+- App: https://findmejob-nu.vercel.app (HTTP 200, Next.js scaffold rendering)
+- GitHub: https://github.com/Ishan2036624/findmejob (private, main branch, Vercel GH App connected)
+- Vercel project: `ishan2036924s-projects/findmejob` (`prj_DPBwJ33VqJqPBgYl60bEhbeP8e16`)
+- First production deploy: `dpl_2Cy8QFymKzheyKwJrmhCiVaCcX3y`, READY in 42s
 
-**Recommendation locked (post-pivot 2026-04-27):**
-- Sonnet 4.6 — orchestrator + profile assessment + resume tailoring (the 3 moat tasks).
-- GPT-4.1 mini — everything else: cover letter, interview Qs, outreach, company brief, roadmap, job match scoring, ghost-job classification, light extraction.
-- Gemini Flash-Lite — held in reserve via AI Gateway; one-line swap when production cost on mini scoring becomes the bottleneck.
-- Embeddings — deferred to Slice 1 implementation.
-- **Prompt caching mandatory** from Slice 1; structure every Sonnet call so system + rubrics + profile are stable cacheable prefixes.
+**Stack delivered:**
+- Next.js 16.2.4 (App Router, Turbopack), React 19.2.4, Tailwind 4.2.4, TS strict.
+- AI SDK 6.0.168 + `@ai-sdk/gateway` 3.0.104 (workload→model map at `src/lib/ai/models.ts`).
+- Supabase SSR 0.10.2 + supabase-js 2.104.1 (browser + server clients + auth-refresh middleware).
+- `vercel.ts` typed config via `@vercel/config` 0.2.1.
+- GH Actions CI (`.github/workflows/ci.yml`) — lint + typecheck on PR + push-to-main.
+- Vercel git integration → auto preview deploys on PR, auto prod deploys on main push.
 
-**What's next (on approval):**
-- Phase 1.5: Infra + CI/CD setup. Install Vercel + Supabase CLIs (pnpm too); `gh repo create` private; Next.js scaffold; Vercel project link; Supabase project create + link; env var wiring (AI Gateway key + Anthropic, Google, OpenAI fallback keys); `vercel.ts` config; basic GH Actions for lint/typecheck on PR; Vercel git integration handles preview/prod deploys.
+**Env state:**
+- Vercel: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set on Production + Development. Preview pending user dashboard action (CLI v52 regression on preview-without-branch).
+- Local: `.env.local` populated by `vercel env pull` (Supabase URL + anon + Vercel OIDC token for AI Gateway local dev).
+- Pending user action: `vercel env add SUPABASE_SERVICE_ROLE_KEY` interactively (secret never goes through chat transcript).
 
-**Open questions:**
-- Real product name (still using "CareerForge" placeholder).
-- Confirm: are we OK with Vercel git integration handling deploys (no GH Actions deploy step needed)?
+**Local toolchain set up:**
+- npm prefix → `~/.npm-global` (PATH appended to `~/.zshrc`).
+- Vercel CLI 52.0.0, pnpm 10.33.2 installed globally there.
+- gh CLI authenticated with workflow scope.
+- Vercel CLI logged in as `ishan2036924`.
+- Vercel MCP authorized (`list_teams` works; `get_project` returns 403 on personal scope — known quirk).
+
+**What's next:**
+- Phase 2: Slice 1 architecture. Data model (users, profiles, jobs, assessments, generations, embeddings_cache). API surface for Slice 1 (assessment + feed + tailored-resume endpoints). Caching strategy. Cost model at 100 users. One Mermaid component diagram. Brutal-honesty review of Slice 1 scope.
+
+**Open items / user todos:**
+- Add `SUPABASE_SERVICE_ROLE_KEY` via `vercel env add` (interactive).
+- Copy URL + anon key to Preview environment via Vercel dashboard.
+- Real product name (still using "findmejob" / "CareerForge" placeholders).
 
 **Files touched this session:**
-- Phase 0: created CLAUDE.md, .claude/NOTES.md, .claude/LOG.md, .gitignore, README.md, git init.
-- Phase 1: edited .claude/NOTES.md `## Models` section (replaced placeholder with full table + cost model + sources).
+- Phase 0/1: CLAUDE.md, .claude/NOTES.md, .claude/LOG.md, .gitignore, README.md, AGENTS.md.
+- Phase 1.5 Stage A: full Next.js scaffold + src/instrumentation.ts, src/middleware.ts, src/lib/ai/models.ts, src/lib/supabase/{client,server,middleware}.ts, vercel.ts, .env.example, .github/workflows/ci.yml, package.json scripts.
+- Phase 1.5 Stage B/C: .vercel/project.json (gitignored), .env.local (gitignored), Vercel env vars on Production + Development.
 
 ---
 
@@ -63,3 +79,10 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 - `[2026-04-27 00:00] [DECISION]` Prompt caching is mandatory from Slice 1. Every Sonnet call must structure prompt as: stable prefix (system + rubrics + profile) followed by volatile suffix (JD + edit instructions). Target ≥70% input tokens served from cache. Reduces Sonnet effective cost ~3×.
 - `[2026-04-27 00:00] [DECISION]` Cost-discipline gate: paid tiers must be live before crossing ~500 active users. At 1k users, projected LLM spend is $8K–19K/month depending on usage profile.
 - `[2026-04-27 00:00] [NOTE]` Embeddings model deferred to Slice 1 implementation; tentatively Voyage v4 or `openai/text-embedding-3-large`.
+- `[2026-04-27 00:00] [BUILD]` Phase 1.5 Stage A: Next.js 16 scaffold (App Router, Turbopack, Tailwind 4, TS strict) + AI SDK 6 + Vercel AI Gateway + Supabase SSR (browser + server + middleware) + `vercel.ts` typed config + GH Actions CI (lint + typecheck). Local commit `95fea0e`. `pnpm typecheck` and `pnpm lint` both clean.
+- `[2026-04-27 00:00] [DECISION]` Local toolchain set up under user-writable `~/.npm-global` prefix. PATH appended to `~/.zshrc`. Avoids the `/usr/local` permission issue that blocked `corepack enable`.
+- `[2026-04-27 00:00] [BUILD]` Created private GitHub repo `Ishan2036924/findmejob`. Vercel GitHub App installed by user → `vercel git connect` succeeded → auto-deploy pipeline live (PR → preview, main → prod).
+- `[2026-04-27 00:00] [BUILD]` Vercel project `ishan2036924s-projects/findmejob` linked. First production deploy ready in 42s at https://findmejob-nu.vercel.app. HTTP 200 verified, middleware not crashing, Turbopack chunks served.
+- `[2026-04-27 00:00] [DECISION]` Vercel CLI v52 has a regression on `vercel env add NAME preview --value VALUE --yes` (returns `git_branch_required` even with the documented form). Workaround: configure Preview env vars via dashboard. Documented in NOTES.md Lessons.
+- `[2026-04-27 00:00] [DECISION]` `AI_GATEWAY_API_KEY` not separately provisioned — Vercel auto-injects it on deployed envs; local dev uses `VERCEL_OIDC_TOKEN` from `vercel env pull`. Single-source-of-truth for AI auth.
+- `[2026-04-27 00:00] [PIVOT]` Project rename: dropped CareerForge placeholder, locked-in name is **findmejob** per user.

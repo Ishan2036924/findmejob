@@ -3,7 +3,7 @@ project: CareerForge
 working_dir: /Users/ishansrivastava/Desktop/Projects/Findmejob
 phase: 0 (scaffolding) → next is 1 (model research)
 slice: pre-Slice-1
-version: 0.1.0
+version: 0.2.0
 last_updated: 2026-04-27
 primary_stack: Next.js (App Router) + Supabase + Vercel AI Gateway
 max_lines: 200
