@@ -1,9 +1,9 @@
 ---
 project: findmejob
 working_dir: /Users/ishansrivastava/Desktop/Projects/Findmejob
-phase: 3 (Slice 1 schema migration written, pending apply) → next is Phase 4 (prompt library + agent contracts)
-slice: pre-Slice-1 (schema written; user needs to run `supabase db push` to apply)
-version: 0.4.0
+phase: 4 (prompt library + agent contracts complete) → next is Slice 1 build proper
+slice: pre-Slice-1 (architecture, schema applied, agent contracts ready — build can start)
+version: 0.5.0
 last_updated: 2026-04-27
 production_url: https://findmejob-nu.vercel.app
 github_repo: https://github.com/Ishan2036924/findmejob

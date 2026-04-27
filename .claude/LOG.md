@@ -15,7 +15,7 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 ## Last session
 
 **Date:** 2026-04-27
-**Phase:** 3 (Slice 1 schema migration) — **written; awaiting application via `supabase db push`**. Phases 0, 1, 1.5, 2 completed earlier same session.
+**Phase:** 4 (prompt library + agent contracts) — **complete; assessment agent fully wired, tailor + match-score stubbed with locked contracts**. Phases 0, 1, 1.5, 2, 3 also completed in the same session.
 
 **Production state:**
 - App: https://findmejob-nu.vercel.app (HTTP 200, Next.js scaffold rendering)
@@ -44,8 +44,14 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 - Vercel MCP authorized (`list_teams` works; `get_project` returns 403 on personal scope — known quirk).
 
 **What's next:**
-- User runs `pnpm exec supabase login` + `link --project-ref afuwanatfhcaqejryixc` + `db push` to apply migration.
-- Then Phase 4: prompt library skeleton + AI Gateway client wrappers + first agent contract (assessment).
+- Slice 1 build proper. Concrete first tasks:
+  1. PDF resume parser (server action wrapping `unpdf` + post-process to `resume_json`).
+  2. Onboarding UI (target role family + seniority + paste-or-upload-resume).
+  3. Wire `runAssessment()` into a server action; render assessment UI.
+  4. JSearch ingest cron (`/api/cron/ingest-jobs`).
+  5. Wire `runMatchScore()` (lazy on feed view).
+  6. Wire `runTailor()` + LaTeX template + Tectonic-in-Sandbox compile.
+- LaTeX template work and Vercel Sandbox setup is the biggest unknown — schedule it early in the sequence.
 
 **Open items / user todos:**
 - Add `SUPABASE_SERVICE_ROLE_KEY` via `vercel env add` (interactive).
@@ -98,3 +104,8 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 - `[2026-04-27 00:00] [DECISION]` Supabase CLI installed as project devDep (npm global install is blocked by Supabase). pnpm 10 ignored postinstall by default; added `pnpm.onlyBuiltDependencies: ["supabase"]` to package.json so the binary download script runs.
 - `[2026-04-27 00:00] [DECISION]` Storage bucket path convention: `{user_id}/{resume_id}.pdf`. Path-prefix RLS via `(storage.foldername(name))[1] = auth.uid()::text` keeps each user isolated to their own folder.
 - `[2026-04-27 00:00] [DECISION]` Profile creation strategy: trigger on `auth.users` insert (`handle_new_user()`) auto-inserts an empty `profiles` row. App code never has to call `insert into profiles` for new signups.
+- `[2026-04-27 00:00] [BUILD]` Phase 3 applied: `supabase db push` ran cleanly from Bash tool after user did interactive login + link. CLI auth token at `~/.supabase/access-token` + project link at `supabase/.temp/` propagated to spawned shells. Migration `20260427180700` synced (local == remote).
+- `[2026-04-27 00:00] [BUILD]` Phase 4: prompt library + agent contracts. 17 files under `src/lib/ai/` covering cache helper, Zod schemas (profile + assessment + tailor + match-score), system prompts (3), role-family rubrics (swe + data_ml), and 3 agent functions. Assessment fully wired to AI Gateway via `generateObject`; tailor + match-score have locked contracts and stubbed bodies. `pnpm typecheck` and `pnpm lint` clean.
+- `[2026-04-27 00:00] [DECISION]` Cache layout for Sonnet calls: 3 breakpoints — system (1h), rubric (1h), profile (5m). Volatile final user message pushes the cache prefix to ~70% of input tokens.
+- `[2026-04-27 00:00] [DECISION]` ESLint configured to ignore `_`-prefixed unused vars — standard TS convention for intentionally-unused stub params and destructure remainders.
+- `[2026-04-27 00:00] [DECISION]` Resume JSON v1 schema locked: contact, summary, experience, education, projects, skills, certifications. Will iterate as PDF parsing surfaces edge cases. Schema lives in `src/lib/ai/schemas/profile.ts` and is the source of truth shared by every agent.
