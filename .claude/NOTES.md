@@ -254,11 +254,298 @@ For mini: OpenAI's automatic prompt caching kicks in on prefix matches >1024 tok
 
 ## Architecture
 
-*Filled in Phase 2 (scoped to Slice 1 only).*
+Scope: **Slice 1 only**. Filled 2026-04-27 (Phase 2). Any addition for later slices goes in their own section when those slices begin.
 
-Will cover: data model, API surface for Slice 1, agent orchestration for resume tailoring, caching strategy (prompt cache + JD parse cache + profile cache), cost model at 100 users, one Mermaid component diagram, brutal-honesty review.
+### Slice 1 user journey (canonical)
 
-Skipped here, planned in respective slices: ghost-job detection (Slice 4), roadmap engine (Slice 3), LinkedIn analysis (Slice 5), realistic-chance estimator (Slice 5), multi-source ingestion (Slice 4), full observability deep-dive (post-beta).
+1. Sign up (Supabase Auth, email + Google OAuth).
+2. Onboarding: pick `target_role_family` + `target_seniority` + `target_location`.
+3. Upload resume (PDF/text) → parse → `resume_json` stored on profile.
+4. Optional: paste LinkedIn export, add portfolio URLs.
+5. Run profile assessment (Sonnet) → rubric-grounded scores + gaps + strengths.
+6. Job feed populates from JSearch (India filter, target role family). Each job lazy-scored on view.
+7. User clicks a job → tailored resume generated (Sonnet edit-via-JSON → LaTeX → Tectonic in Vercel Sandbox → PDF).
+8. User downloads PDF.
+
+That's it. Cover letter / interview Qs / outreach / brief / roadmap / multi-source / LinkedIn auto-fetch / "realistic chance" / ghost-job detection — all later slices.
+
+### Component diagram
+
+```mermaid
+flowchart TB
+  user[User Browser]
+
+  subgraph vercel[Vercel - Fluid Compute]
+    next[Next.js App Router<br/>Server Components + Actions]
+    mw[Proxy Middleware<br/>auth refresh]
+    api[API routes / Server Actions]
+    sandbox[Vercel Sandbox microVM<br/>Tectonic LaTeX compile]
+    cron[Cron: job ingestion]
+  end
+
+  subgraph gateway[Vercel AI Gateway]
+    sonnet[anthropic/claude-sonnet-4-6<br/>assessment + resume tailor]
+    mini[openai/gpt-4.1-mini<br/>match scoring]
+  end
+
+  subgraph supabase[Supabase]
+    auth[Auth]
+    db[(Postgres + RLS<br/>profiles, resumes, jobs,<br/>assessments, generations,<br/>match_scores)]
+    storage[(Storage:<br/>resume PDFs)]
+  end
+
+  jsearch[JSearch / RapidAPI]
+
+  user --> next
+  next --> mw
+  mw --> auth
+  next --> api
+  api --> db
+  api --> gateway
+  api --> sandbox
+  sandbox --> storage
+  cron --> jsearch
+  cron --> db
+  cron --> mini
+```
+
+### Data model (Postgres / Supabase, Slice 1 only)
+
+Six tables. All user-data tables get RLS owner-only. `jobs` is shared-read, service-role-write.
+
+```
+profiles
+  id                       uuid PK == auth.users.id
+  display_name             text
+  target_role_family       enum(swe, data_ml, product, design, devops, sales, marketing, ops, other)
+  target_seniority         enum(intern, entry, mid, senior, staff)
+  target_location          text default 'Delhi NCR'
+  linkedin_paste           text nullable
+  portfolio_urls           text[] default '{}'
+  resume_json              jsonb nullable                -- canonical structured resume
+  raw_resume_text          text nullable                 -- original text for re-parse
+  latest_assessment_id     uuid fk assessments.id nullable
+  created_at, updated_at   timestamptz
+
+resumes                                                 -- versions; tailored copies live here too
+  id                       uuid PK
+  profile_id               uuid fk profiles.id
+  source                   enum(upload_pdf, upload_text, ai_tailored)
+  resume_json              jsonb
+  raw_text                 text nullable
+  parent_resume_id         uuid fk resumes.id nullable   -- tailored → base
+  target_job_id            uuid fk jobs.id nullable      -- only set for ai_tailored
+  pdf_url                  text nullable                 -- Supabase Storage path
+  compile_status           enum(pending, compiling, success, failed)
+  compile_error            text nullable
+  created_at               timestamptz
+
+jobs                                                     -- shared, deduped
+  id                       uuid PK
+  source                   enum(jsearch, greenhouse, lever, ashby)  -- Slice 1: jsearch only
+  source_id                text                          -- id from source, dedup key
+  source_url               text
+  title, company, location text
+  description              text
+  description_parsed       jsonb nullable                -- extracted skills/reqs, cached
+  posted_at                timestamptz nullable
+  raw                      jsonb                         -- full source payload
+  created_at, last_seen_at timestamptz
+  UNIQUE(source, source_id)
+
+assessments
+  id                       uuid PK
+  profile_id               uuid fk profiles.id
+  rubric_version           text                          -- e.g., "v1.swe.2026-04"
+  model                    text                          -- 'anthropic/claude-sonnet-4-6'
+  overall_score            int                           -- 0-100
+  dimensions               jsonb                         -- {technical:{score,evidence,gaps,strengths}, ...}
+  candid_summary           text                          -- headline narrative
+  next_steps               jsonb                         -- [{priority, action, why, time_estimate}]
+  raw_response             jsonb                         -- full LLM response for debug
+  prompt_tokens            int
+  completion_tokens        int
+  cached_tokens            int
+  created_at               timestamptz
+
+generations                                              -- artifacts of on-click work
+  id                       uuid PK
+  profile_id               uuid fk profiles.id
+  job_id                   uuid fk jobs.id
+  kind                     enum(resume_tailoring)        -- Slice 1 only this; Slice 2 adds the rest
+  status                   enum(pending, generating, success, failed)
+  output                   jsonb nullable                -- edit ops applied (for resume_tailoring)
+  resume_id                uuid fk resumes.id nullable   -- the materialized tailored resume row
+  error                    text nullable
+  model                    text
+  prompt_tokens, completion_tokens, cached_tokens int
+  created_at, completed_at timestamptz
+
+match_scores                                             -- per profile×job, idempotent
+  id                       uuid PK
+  profile_id               uuid fk profiles.id
+  job_id                   uuid fk jobs.id
+  score                    int                           -- 0-100
+  reasoning                text
+  gaps                     text[]                        -- top 3 missing skills
+  strengths                text[]                        -- top 3 overlaps
+  model                    text
+  created_at, updated_at   timestamptz
+  UNIQUE(profile_id, job_id)
+```
+
+`pgvector` and `embeddings_cache` deferred to Slice 4 when ghost-job detection needs semantic dedup.
+
+### RLS policies (sketch)
+
+| Table         | SELECT                          | INSERT                          | UPDATE             | DELETE             |
+|---------------|---------------------------------|---------------------------------|--------------------|--------------------|
+| profiles      | `auth.uid() = id`               | `auth.uid() = id`               | own only           | own only           |
+| resumes       | own (via profile_id)            | own                             | own                | own                |
+| assessments   | own (via profile_id)            | own (server-action gated)       | none (immutable)   | own                |
+| generations   | own                             | own (server-action gated)       | system (status updates by service_role) | own |
+| match_scores  | own                             | service_role only               | service_role only  | service_role only  |
+| jobs          | authenticated (any)             | service_role only               | service_role only  | service_role only  |
+
+### API surface (Slice 1)
+
+Server Actions where the call originates from a Server Component; REST routes where polling or external triggers are required.
+
+| Method/Kind     | Path / Action                       | Purpose                                                 |
+|-----------------|-------------------------------------|---------------------------------------------------------|
+| Server Action   | `updateProfile(formData)`           | Upsert basic profile fields                             |
+| Server Action   | `uploadResume(file)`                | Parse PDF/text → `resume_json` + raw_text on profile    |
+| Server Action   | `runAssessment()`                   | Idempotent: returns latest if <7d, else fires Sonnet    |
+| GET             | `/api/jobs?cursor=&limit=`          | Feed with eager+lazy match scores                       |
+| Server Action   | `requestTailor(jobId)`              | Insert `generations` row, fire Sonnet, return id        |
+| GET             | `/api/generations/:id`              | Poll status (pending/generating/success/failed)         |
+| GET             | `/api/generations/:id/pdf`          | Redirect to signed Storage URL                          |
+| Internal cron   | `/api/cron/ingest-jobs`             | JSearch India fetch → upsert `jobs` (Vercel cron daily) |
+| Internal        | `/api/internal/match-score`         | Triggered lazily from feed; service_role inserts        |
+
+Auth routes are Supabase's stock callbacks (`/auth/callback`).
+
+### Agent orchestration — resume tailoring (Slice 1: single-pass)
+
+Slice 1 keeps it simple. **No Workflow DevKit yet** — that lands in Slice 2 with the on-click multi-agent bundle.
+
+Flow:
+1. Server Action `requestTailor(jobId)` → INSERT `generations` (status=pending, kind=resume_tailoring) → return id immediately.
+2. Background work (in same Fluid Compute invocation, runs after response sent via `waitUntil`):
+   1. Fetch `profile.resume_json` + `job.description` + `job.description_parsed`.
+   2. Call Sonnet with **prompt-cache-friendly structure** (see Caching below).
+   3. Parse response: `{ edit_ops: [{ section, index, field, new_value, reason }, ...] }`.
+   4. Apply edit_ops to `resume_json` → `tailored_resume_json`.
+   5. INSERT `resumes` row (source=ai_tailored, parent_resume_id, target_job_id, compile_status=compiling).
+   6. Render LaTeX from `tailored_resume_json` + ATS-friendly template.
+   7. POST to Vercel Sandbox endpoint with LaTeX source → Tectonic compile → PDF bytes.
+   8. Upload PDF to Supabase Storage → store URL on `resumes.pdf_url`.
+   9. UPDATE `resumes.compile_status=success`, `generations.status=success, completed_at=now()`.
+3. Frontend polls `/api/generations/:id` every 2s; redirects to PDF on success.
+
+Failure modes (each writes status=failed + error string):
+- Sonnet returns malformed edit_ops → reject + show user "regenerate".
+- LaTeX compile error → log raw .tex for debug, fall back to plain HTML resume in Slice 1 (defer PDF perfection to Slice 2 polish).
+- Sandbox cold start >10s → still acceptable (user is in polling UI).
+
+### Caching strategy (mandatory from Slice 1)
+
+#### Anthropic prompt caching — every Sonnet call
+
+Structure each Sonnet message so cache breakpoints maximize hits:
+
+```
+[1] System prompt + rubric        ← cached 1hr (rare changes, version-gated)
+[2] User profile context block    ← cached 5min (per-session profile)
+[3] Few-shot edit-op examples     ← cached 1hr (ships with prompt version)
+--- cache breakpoint ---
+[4] JD + user instruction         ← always fresh
+```
+
+Target: **70%+ input tokens served from cache** on the 2nd+ call within a session. Effective Sonnet input cost drops $3 → ~$1.10 per 1M.
+
+#### Application-level cache (Postgres rows; no Redis in Slice 1)
+
+| Cache                   | Key                          | TTL / invalidation                                      |
+|-------------------------|------------------------------|---------------------------------------------------------|
+| `match_scores`          | `(profile_id, job_id)`       | Permanent until `profiles.resume_json` changes; bump on profile update → soft-invalidate (mark stale) |
+| `jobs.description_parsed` | `jobs.id`                  | Permanent (re-parse only if extraction logic changes)   |
+| Compiled resume PDF     | `(profile_id, job_id, resume_json hash)` | Permanent; new tailor call creates new resume row |
+
+#### Vercel Runtime Cache (post-Slice-1 if hot paths emerge)
+
+Skipped in Slice 1 — Postgres-backed cache is fine at 100 users. Revisit if feed page-load >2s.
+
+### Cost model — Slice 1 at 100 users
+
+Mix: 90 typical + 10 heavy. Per-user/month estimates with caching wired:
+
+| Activity                          | Typical user      | Heavy user          |
+|-----------------------------------|-------------------|---------------------|
+| Assessment (Sonnet, 50% cache)    | 1 × $0.08 = $0.08 | 2 × $0.08 = $0.16   |
+| Match scoring (mini)              | 20 × $0.0035 = $0.07 | 150 × $0.0035 = $0.53 |
+| Resume tailoring (Sonnet, 70% cache) | 5 × $0.040 = $0.20 | 30 × $0.040 = $1.20 |
+| LaTeX compile (Sandbox)           | 5 × $0.005 = $0.025 | 30 × $0.005 = $0.15 |
+| Job ingest cron (mini, prorated)  | $0.10             | $0.10               |
+| **Per-user total**                | **~$0.48**        | **~$2.14**          |
+
+**100 users (90 typical + 10 heavy):** 90 × $0.48 + 10 × $2.14 = **~$65/month LLM + Sandbox spend.**
+
+Plus infra:
+- Vercel Hobby: $0 (free until paid features needed)
+- Supabase Free: $0 (500MB DB, 1GB Storage, 50K MAU — well under)
+- JSearch RapidAPI: $10/mo basic plan (free tier 50 req/day insufficient)
+- **Total Slice 1 at 100 users: ~$75–80/month.**
+
+At 500 users (cost-discipline gate): projects to ~$400/month — still pre-paid-tier-launch budget.
+
+### Slice 1 scope — what's NOT included (re-stating for ruthless clarity)
+
+| Feature                                       | Slice |
+|-----------------------------------------------|-------|
+| Cover letter, interview Qs, outreach, brief   | 2     |
+| On-click full multi-agent bundle              | 2     |
+| Workflow DevKit orchestration                 | 2     |
+| Roadmap engine + curated skill→resource map   | 3     |
+| Portfolio + LinkedIn analysis (paste-in only) | 3 + 5 |
+| Multi-source ingestion (Greenhouse/Lever/Ashby) | 4   |
+| Ghost-job detection                           | 4     |
+| Vector embeddings + semantic match            | 4     |
+| "Realistic chance" estimator (calibrated)     | 5     |
+| LinkedIn paste-in + PDF analysis              | 5     |
+
+### Brutal-honesty review
+
+#### Top 3 risks in Slice 1
+
+1. **Resume parser quality.** PDF extraction is the rockiest unknown. Multi-column layouts, embedded tables, and design-heavy resumes produce garbage when run through generic PDF→text. If 30%+ of uploads parse poorly, users churn before seeing the assessment value. **Mitigation:** ship with "paste your resume text" as the first-class option; PDF upload is best-effort. Add explicit "verify extracted fields" step before assessment.
+2. **Assessment voice calibration.** "Candid not mean" is a prompt-engineering moving target. First version will skew either soft (LLM default) or harsh (overcorrection). The brand promise dies on either failure mode. **Mitigation:** rubric_version field in DB → easy A/B; manually grade first 50 beta assessments before any wider rollout.
+3. **JSearch coverage in India.** JSearch indexes major boards but Indian-specific roles (smaller startups, ITES, contract roles) coverage is unknown. A sparse feed kills downstream funnel — no clicks, no bundles. **Mitigation:** measure feed density per role family in week 1 of beta; if too sparse, accelerate Slice 4 (ATS endpoints) before Slice 2.
+
+#### Top 3 things consciously deferred
+
+1. **Cover letter / interview Qs / outreach / brief** — Slice 2. Slice 1 must prove assessment + tailored resume are valuable in isolation.
+2. **Vector embeddings for match scoring** — replaced by direct LLM scoring in Slice 1. Saves a whole subsystem (pgvector, embedding pipeline, recall tuning). At 100 users, cached LLM scoring is fine; at 10K users, revisit.
+3. **Workflow DevKit + queue infrastructure** — Slice 1 uses `waitUntil` for background work in Fluid Compute. WDK is overkill for a single Sonnet call + LaTeX compile. Comes online in Slice 2 when 5+ parallel agents need orchestrating.
+
+#### Things we might second-guess later
+
+- **Match scoring on view (lazy) vs ingest (eager).** Slice 1 chose lazy: scores computed on first feed render per (profile, job). Trade-off: first feed view is slow (10–20s for 50 jobs). Mitigation: paginate aggressively + compute in parallel. If unacceptable in beta, switch to eager-on-ingest (post-cron).
+- **Single LaTeX template.** Slice 1 ships one ATS-friendly single-column. Two more templates in Slice 3. Risk: template too plain → users want fancy. Counter-evidence: ATS systems penalize fancy.
+- **No prompt versioning UI.** Prompts live in code; iterate via deploy. Slice 4+ might need a UI if non-engineers want to tune.
+- **No structured A/B framework.** Shadow-routing for scoring is hardcoded. If we need broader A/B, rebuild via a feature-flag library.
+
+### Open decisions before Slice 1 build
+
+| # | Decision                                           | Recommendation                              |
+|---|----------------------------------------------------|---------------------------------------------|
+| 1 | Auth provider                                       | **Supabase Auth** (free, in stack)          |
+| 2 | JSearch transport                                   | **Direct from server** (key in env)         |
+| 3 | Match scoring: eager (cron) vs lazy (on-view)       | **Lazy** with parallel-compute pagination   |
+| 4 | Resume tailor UX: streaming vs poll                 | **Poll** (Slice 1); stream in Slice 2       |
+| 5 | Initial role-family rubrics — how many?             | Just **swe + data_ml** for week 1 beta; expand based on user signups |
+| 6 | LaTeX template author — pick existing OSS template? | Use `awesome-cv` or `medium-cv` as base; adapt for ATS-friendly single-column |
+| 7 | Resume PDF parser library                           | `unpdf` (Vercel-friendly Node, no native deps); fallback to text-paste |
 
 ---
 

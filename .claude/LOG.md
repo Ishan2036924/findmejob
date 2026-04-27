@@ -15,7 +15,7 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 ## Last session
 
 **Date:** 2026-04-27
-**Phase:** 1.5 (infra + CI/CD) — **production live**. Phases 0, 1 completed earlier same session.
+**Phase:** 3 (Slice 1 schema migration) — **written; awaiting application via `supabase db push`**. Phases 0, 1, 1.5, 2 completed earlier same session.
 
 **Production state:**
 - App: https://findmejob-nu.vercel.app (HTTP 200, Next.js scaffold rendering)
@@ -44,7 +44,8 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 - Vercel MCP authorized (`list_teams` works; `get_project` returns 403 on personal scope — known quirk).
 
 **What's next:**
-- Phase 2: Slice 1 architecture. Data model (users, profiles, jobs, assessments, generations, embeddings_cache). API surface for Slice 1 (assessment + feed + tailored-resume endpoints). Caching strategy. Cost model at 100 users. One Mermaid component diagram. Brutal-honesty review of Slice 1 scope.
+- User runs `pnpm exec supabase login` + `link --project-ref afuwanatfhcaqejryixc` + `db push` to apply migration.
+- Then Phase 4: prompt library skeleton + AI Gateway client wrappers + first agent contract (assessment).
 
 **Open items / user todos:**
 - Add `SUPABASE_SERVICE_ROLE_KEY` via `vercel env add` (interactive).
@@ -86,3 +87,14 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 - `[2026-04-27 00:00] [DECISION]` Vercel CLI v52 has a regression on `vercel env add NAME preview --value VALUE --yes` (returns `git_branch_required` even with the documented form). Workaround: configure Preview env vars via dashboard. Documented in NOTES.md Lessons.
 - `[2026-04-27 00:00] [DECISION]` `AI_GATEWAY_API_KEY` not separately provisioned — Vercel auto-injects it on deployed envs; local dev uses `VERCEL_OIDC_TOKEN` from `vercel env pull`. Single-source-of-truth for AI auth.
 - `[2026-04-27 00:00] [PIVOT]` Project rename: dropped CareerForge placeholder, locked-in name is **findmejob** per user.
+- `[2026-04-27 00:00] [BUILD]` Phase 2: Slice 1 architecture written into NOTES.md `## Architecture`. Data model (6 tables: profiles, resumes, jobs, assessments, generations, match_scores). Component Mermaid diagram. Single-pass Sonnet flow for resume tailoring (no Workflow DevKit yet — Slice 2). 3-layer prompt-cache strategy targeting 70%+ hits. Cost model at 100 users: ~$75–80/mo total.
+- `[2026-04-27 00:00] [DECISION]` Slice 1 scope ruthlessly cut: only profile assessment + match score + single-source job feed (JSearch India) + on-click tailored resume PDF. Cover letter / interview Qs / outreach / brief / roadmap / multi-source / LinkedIn / ghost-job / "realistic chance" all explicitly Slice 2-5.
+- `[2026-04-27 00:00] [DECISION]` Slice 1 match scoring: lazy (compute on feed view), cached permanently per (profile_id, job_id), invalidate on profile resume change. Trade-off: first feed view slow; mitigated by parallel-compute + pagination.
+- `[2026-04-27 00:00] [DECISION]` Slice 1 resume tailoring uses single-pass Sonnet + `waitUntil` for background work. No Workflow DevKit / queue. WDK lands in Slice 2 when on-click bundle needs 5+ parallel agents.
+- `[2026-04-27 00:00] [DECISION]` Vector embeddings deferred to Slice 4 (ghost-job detection trigger). Slice 1 match scoring is direct LLM, no pgvector.
+- `[2026-04-27 00:00] [DECISION]` Slice 1 ships rubrics for SWE + data_ml only. Other role families added based on actual beta signups, not pre-emptively.
+- `[2026-04-27 00:00] [DECISION]` PDF parser: `unpdf` (Vercel-friendly, no native deps) with text-paste as first-class fallback. PDF upload is best-effort with explicit "verify extracted fields" step before assessment fires.
+- `[2026-04-27 00:00] [BUILD]` Phase 3: Slice 1 schema migration written at `supabase/migrations/20260427180700_slice1_schema.sql`. 6 tables + 7 enums + RLS policies for all + trigger to auto-create profile on signup + updated_at triggers + private `resumes` storage bucket with path-prefix RLS. 249 lines.
+- `[2026-04-27 00:00] [DECISION]` Supabase CLI installed as project devDep (npm global install is blocked by Supabase). pnpm 10 ignored postinstall by default; added `pnpm.onlyBuiltDependencies: ["supabase"]` to package.json so the binary download script runs.
+- `[2026-04-27 00:00] [DECISION]` Storage bucket path convention: `{user_id}/{resume_id}.pdf`. Path-prefix RLS via `(storage.foldername(name))[1] = auth.uid()::text` keeps each user isolated to their own folder.
+- `[2026-04-27 00:00] [DECISION]` Profile creation strategy: trigger on `auth.users` insert (`handle_new_user()`) auto-inserts an empty `profiles` row. App code never has to call `insert into profiles` for new signups.

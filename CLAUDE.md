@@ -1,10 +1,12 @@
 ---
-project: CareerForge
+project: findmejob
 working_dir: /Users/ishansrivastava/Desktop/Projects/Findmejob
-phase: 0 (scaffolding) → next is 1 (model research)
-slice: pre-Slice-1
-version: 0.2.0
+phase: 3 (Slice 1 schema migration written, pending apply) → next is Phase 4 (prompt library + agent contracts)
+slice: pre-Slice-1 (schema written; user needs to run `supabase db push` to apply)
+version: 0.4.0
 last_updated: 2026-04-27
+production_url: https://findmejob-nu.vercel.app
+github_repo: https://github.com/Ishan2036924/findmejob
 primary_stack: Next.js (App Router) + Supabase + Vercel AI Gateway
 max_lines: 200
 ---
@@ -57,11 +59,11 @@ If a section reference points to a file that doesn't exist or is empty, that sec
 
 ## Current focus
 
-**Phase:** 0 (scaffolding complete pending review) → Phase 1 (model research) on approval.
+**Phase:** 2 (Slice 1 architecture written, pending review) → Phase 3 (Supabase schema + RLS migrations) on approval.
 
-**Active slice:** none yet. Slice 1 begins after Phase 2 architecture is approved.
+**Active slice:** Slice 1 — profile assessment + match score + tailored resume (JSearch India only).
 
-**Last decision:** sliced delivery (5 slices, ~5–6 months solo+Claude), Next.js-only stack, 3-file memory scaffold.
+**Last decision:** Slice 1 architecture locked. 6-table data model (profiles, resumes, jobs, assessments, generations, match_scores). Single-pass Sonnet for tailoring (no WDK). Lazy match scoring with permanent caching. ~$75–80/mo at 100 users.
 
 ---
 
