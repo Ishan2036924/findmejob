@@ -15,7 +15,7 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 ## Last session
 
 **Date:** 2026-04-27
-**Phase:** 4 (prompt library + agent contracts) — **complete; assessment agent fully wired, tailor + match-score stubbed with locked contracts**. Phases 0, 1, 1.5, 2, 3 also completed in the same session.
+**Phase:** Slice 1 build — **Step 1 complete: design system + landing + auth pages**. All earlier phases (0–4) already done.
 
 **Production state:**
 - App: https://findmejob-nu.vercel.app (HTTP 200, Next.js scaffold rendering)
@@ -44,14 +44,17 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 - Vercel MCP authorized (`list_teams` works; `get_project` returns 403 on personal scope — known quirk).
 
 **What's next:**
-- Slice 1 build proper. Concrete first tasks:
+- User actions in Supabase dashboard:
+  1. Authentication → URL Configuration → add to "Redirect URLs": `http://localhost:3000/auth/callback`, `https://findmejob-nu.vercel.app/auth/callback`. Required or magic links won't redirect properly.
+  2. Authentication → Providers → Email is on by default (good). Enable Google if you want that path working — needs Google OAuth client setup separately.
+- Slice 1 next steps:
   1. PDF resume parser (server action wrapping `unpdf` + post-process to `resume_json`).
-  2. Onboarding UI (target role family + seniority + paste-or-upload-resume).
+  2. Onboarding UI after sign-in (target role family + seniority + paste-or-upload-resume).
   3. Wire `runAssessment()` into a server action; render assessment UI.
   4. JSearch ingest cron (`/api/cron/ingest-jobs`).
   5. Wire `runMatchScore()` (lazy on feed view).
   6. Wire `runTailor()` + LaTeX template + Tectonic-in-Sandbox compile.
-- LaTeX template work and Vercel Sandbox setup is the biggest unknown — schedule it early in the sequence.
+- Cosmetic deferred: rename `src/middleware.ts` → `src/proxy.ts` per Next.js 16 convention.
 
 **Open items / user todos:**
 - Add `SUPABASE_SERVICE_ROLE_KEY` via `vercel env add` (interactive).
@@ -109,3 +112,7 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 - `[2026-04-27 00:00] [DECISION]` Cache layout for Sonnet calls: 3 breakpoints — system (1h), rubric (1h), profile (5m). Volatile final user message pushes the cache prefix to ~70% of input tokens.
 - `[2026-04-27 00:00] [DECISION]` ESLint configured to ignore `_`-prefixed unused vars — standard TS convention for intentionally-unused stub params and destructure remainders.
 - `[2026-04-27 00:00] [DECISION]` Resume JSON v1 schema locked: contact, summary, experience, education, projects, skills, certifications. Will iterate as PDF parsing surfaces edge cases. Schema lives in `src/lib/ai/schemas/profile.ts` and is the source of truth shared by every agent.
+- `[2026-04-27 00:00] [BUILD]` Slice 1 Step 1: design system + landing + auth. shadcn/ui initialized with `base-nova` preset (Base UI primitives, not Radix). 16 ui components added (button, input, label, card, sonner, skeleton, separator, avatar, dropdown-menu, dialog, sheet, tabs, progress, alert, badge, tooltip). motion v12 + next-themes installed. ThemeProvider wraps app, dark by default. Landing page with animated hero + features grid. /sign-in + /sign-up with magic link + Google OAuth. /auth/callback handles code exchange.
+- `[2026-04-27 00:00] [DECISION]` Sign-in flow: magic link is primary (Supabase OTP via email). Google OAuth as alternative. Sign-up reuses sign-in form — Supabase creates account on first link click, no separate sign-up form needed. Cleaner UX, less code duplication.
+- `[2026-04-27 00:00] [DECISION]` shadcn `base-nova` preset uses Base UI not Radix → no `asChild` on Button. Use `buttonVariants()` with `cn()` to apply button styles to Link. Documented in this log so future code follows the same pattern.
+- `[2026-04-27 00:00] [DECISION]` `siteUrl()` precedence: NEXT_PUBLIC_SITE_URL (manual override) > VERCEL_PROJECT_PRODUCTION_URL (stable) > VERCEL_URL (per-deploy) > localhost:3000.

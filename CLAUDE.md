@@ -1,9 +1,9 @@
 ---
 project: findmejob
 working_dir: /Users/ishansrivastava/Desktop/Projects/Findmejob
-phase: 4 (prompt library + agent contracts complete) → next is Slice 1 build proper
-slice: pre-Slice-1 (architecture, schema applied, agent contracts ready — build can start)
-version: 0.5.0
+phase: Slice 1 build (Step 1 done: design system + landing + auth pages)
+slice: Slice 1 in progress
+version: 0.6.0
 last_updated: 2026-04-27
 production_url: https://findmejob-nu.vercel.app
 github_repo: https://github.com/Ishan2036924/findmejob
