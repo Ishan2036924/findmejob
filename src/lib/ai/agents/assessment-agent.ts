@@ -1,5 +1,5 @@
 import { generateObject } from 'ai';
-import { MODELS } from '../models';
+import { MODELS, MODEL_IDS } from '../models';
 import { cached, extractCacheStats } from '../cache';
 import {
   type AssessmentInput,
@@ -74,7 +74,7 @@ export async function runAssessment(input: AssessmentInput): Promise<AssessmentR
 
   return {
     output: result.object,
-    model: MODELS.assessment,
+    model: MODEL_IDS.assessment,
     rubric_version: rubric.version,
     system_version: ASSESSMENT_SYSTEM_VERSION,
     usage: {

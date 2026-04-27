@@ -1,5 +1,5 @@
 import { generateObject } from 'ai';
-import { MODELS } from '../models';
+import { MODELS, MODEL_IDS } from '../models';
 import { resumeJsonSchema, type ResumeJson } from '../schemas/profile';
 import {
   RESUME_PARSER_SYSTEM,
@@ -39,7 +39,7 @@ export async function runResumeParser(input: ResumeParserInput): Promise<ResumeP
 
   return {
     output: result.object,
-    model: MODELS.extraction,
+    model: MODEL_IDS.extraction,
     system_version: RESUME_PARSER_SYSTEM_VERSION,
     usage: {
       inputTokens: result.usage.inputTokens ?? 0,
