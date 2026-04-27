@@ -4,6 +4,7 @@ import { signOut } from '@/lib/auth/actions';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 import { ROLE_FAMILIES, SENIORITY_OPTIONS } from '@/app/onboarding/options';
+import { RunAssessmentButton } from './run-assessment-button';
 
 export const metadata = {
   title: 'Dashboard · findmejob',
@@ -49,16 +50,22 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-12 rounded-2xl border border-white/10 bg-card/40 p-6 backdrop-blur">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            Next: run your assessment
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+            Profile assessment
+          </span>
+          <h2 className="mt-3 text-balance text-xl font-semibold tracking-tight">
+            {profile!.latest_assessment_id
+              ? 'Your assessment is ready.'
+              : 'Get a candid read on where you stand.'}
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Your profile is set up. The assessment engine is wired but the trigger UI lands in the next step. We&apos;ll grade your resume against the {roleLabel} rubric and surface specific gaps + strengths with evidence.
+            {profile!.latest_assessment_id
+              ? 'Open it to see the rubric breakdown, gaps, strengths, and next steps.'
+              : `We'll grade your resume against the ${roleLabel} rubric, surface specific gaps + strengths with evidence, and produce a prioritized action plan. ~30 seconds.`}
           </p>
-          <Button disabled className="mt-5 gap-2">
-            Run assessment
-            <span className="text-xs text-muted-foreground/80">— coming next step</span>
-          </Button>
+          <div className="mt-5">
+            <RunAssessmentButton existingAssessmentId={profile!.latest_assessment_id} />
+          </div>
         </div>
       </main>
     </div>
