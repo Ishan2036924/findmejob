@@ -57,9 +57,9 @@ export function Features() {
         {FEATURES.map((f, i) => (
           <motion.div
             key={f.title}
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0.001, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
+            viewport={{ once: true, margin: '0px 0px -10% 0px' }}
             transition={{
               duration: 0.5,
               delay: i * 0.06,

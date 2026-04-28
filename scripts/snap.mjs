@@ -1,17 +1,18 @@
 #!/usr/bin/env node
-// Headless screenshot of any URL via Playwright.
+// Headless screenshot of any URL via Puppeteer.
 // Usage:
-//   node scripts/snap.mjs <url> [out.png] [--width 1440] [--height 900] [--full]
-//   pnpm snap <url> [...]
+//   node scripts/snap.mjs <url> [out.png] [--width N] [--height N] [--full]
 //
-// Cookie-authenticated routes:
-//   STORAGE_STATE=./scripts/auth-state.json node scripts/snap.mjs <protected-url>
-//   (capture once with `pnpm exec playwright codegen <url> --save-storage scripts/auth-state.json`)
+// Cookie-authenticated routes (capture cookies once, then reuse):
+//   COOKIES=./scripts/cookies.json node scripts/snap.mjs <protected-url>
+//   cookies.json format: an array of Cookie objects from page.cookies() or
+//   exported via DevTools (Application → Cookies → Export).
 //
-// The agent reads the resulting PNG via its Read tool to inspect the rendered UI.
+// The agent runs this and reads the resulting PNG via its Read tool to
+// inspect the rendered UI directly.
 
-import { chromium } from 'playwright';
-import { existsSync } from 'node:fs';
+import puppeteer from 'puppeteer';
+import { readFileSync, existsSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const url = args[0];
@@ -21,26 +22,44 @@ const height = Number(args.find((a) => a.startsWith('--height='))?.slice(9) ?? 9
 const fullPage = args.includes('--full');
 
 if (!url) {
-  console.error('Usage: node scripts/snap.mjs <url> [out.png] [--width N] [--height N] [--full]');
+  console.error('Usage: node scripts/snap.mjs <url> [out.png] [--width=N] [--height=N] [--full]');
   process.exit(1);
 }
 
-const storageStatePath = process.env.STORAGE_STATE;
-const storageState =
-  storageStatePath && existsSync(storageStatePath) ? storageStatePath : undefined;
+const browser = await puppeteer.launch({ headless: true });
+const page = await browser.newPage();
+await page.setViewport({ width, height, deviceScaleFactor: 2 });
 
-const browser = await chromium.launch();
-const context = await browser.newContext({
-  viewport: { width, height },
-  deviceScaleFactor: 2,
-  storageState,
+if (process.env.COOKIES && existsSync(process.env.COOKIES)) {
+  const cookies = JSON.parse(readFileSync(process.env.COOKIES, 'utf8'));
+  if (Array.isArray(cookies) && cookies.length > 0) {
+    await browser.setCookie(...cookies);
+  }
+}
+
+await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
+
+// Scroll top-to-bottom to trigger lazy images + viewport-based animations
+// (motion's whileInView, IntersectionObserver-driven content), then return.
+await page.evaluate(async () => {
+  await new Promise((resolve) => {
+    let y = 0;
+    const step = 200;
+    const max = document.body.scrollHeight;
+    const id = setInterval(() => {
+      window.scrollBy(0, step);
+      y += step;
+      if (y >= max) {
+        clearInterval(id);
+        window.scrollTo(0, 0);
+        setTimeout(resolve, 200);
+      }
+    }, 30);
+  });
 });
-const page = await context.newPage();
+await new Promise((r) => setTimeout(r, 600));
 
-await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 });
-// Brief settle for animations / late paints.
-await page.waitForTimeout(400);
-await page.screenshot({ path: out, fullPage });
+await page.screenshot({ path: out, fullPage, type: 'png' });
 
 await browser.close();
 console.log(`saved: ${out} (${width}x${height}${fullPage ? ', full page' : ''})`);
