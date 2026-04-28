@@ -86,15 +86,15 @@ export default async function AssessmentPage({
 
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-16 px-6 py-12 sm:px-10">
         {/* Hero: score + summary */}
-        <section className="flex flex-col items-start gap-8 sm:flex-row sm:items-center">
-          <ScoreRing score={assessment.overall_score} size={160} />
-          <div className="flex flex-1 flex-col gap-3">
+        <section className="flex flex-col items-start gap-8 sm:flex-row sm:items-start">
+          <ScoreRing score={assessment.overall_score} size={144} className="sm:mt-1" />
+          <div className="flex flex-1 flex-col gap-4">
             <span className="text-xs uppercase tracking-wider text-muted-foreground">
               Candid assessment · {roleLabel} · {seniorityLabel}
             </span>
-            <h1 className="text-balance text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
+            <p className="text-pretty text-base leading-relaxed text-foreground sm:text-lg">
               {assessment.candid_summary}
-            </h1>
+            </p>
             <p className="font-mono text-[11px] text-muted-foreground/70">
               {assessment.rubric_version} · {assessment.model.split('/')[1]} ·{' '}
               {new Date(assessment.created_at).toLocaleDateString('en-US', {
