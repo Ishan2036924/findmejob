@@ -15,7 +15,7 @@ export const matchScoreInputSchema = z.object({
 export type MatchScoreInput = z.infer<typeof matchScoreInputSchema>;
 
 export const matchScoreOutputSchema = z.object({
-  score: z.number().int(),
+  score: z.number(),
   reasoning: z.string(),
   gaps: z.array(z.string()),
   strengths: z.array(z.string()),

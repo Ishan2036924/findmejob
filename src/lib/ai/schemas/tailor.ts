@@ -3,9 +3,9 @@ import { resumeJsonSchema } from './profile';
 
 const editOp = z.object({
   section: z.enum(['summary', 'experience', 'projects', 'skills', 'education']),
-  index: z.number().int().nullable(),
+  index: z.number().nullable(),
   field: z.enum(['title', 'summary', 'bullet', 'item', 'category']),
-  bullet_index: z.number().int().nullable(),
+  bullet_index: z.number().nullable(),
   new_value: z.string(),
   reason: z.string(),
 });

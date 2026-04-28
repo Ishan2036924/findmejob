@@ -2,13 +2,15 @@ import { z } from 'zod';
 import { profileSchema } from './profile';
 
 // Schema notes for LLM-output compatibility (Anthropic + OpenAI strict modes):
-//   - No .min()/.max() on integers — providers reject `minimum`/`maximum` on type:integer
+//   - No .min()/.max() on integers — providers reject `minimum`/`maximum`
 //   - No .min()/.max() on arrays — providers reject `minItems`/`maxItems`
-//   - Constraints are described in the system prompt instead and enforced
-//     post-hoc with .refine() if needed.
+//   - No .int() — zod 4 converters add implicit JS-safe-integer bounds
+//     (`minimum: -2^53, maximum: 2^53`) which providers also reject. Use
+//     z.number() and instruct the LLM to return integers via the prompt.
+//   - Constraints are described in the system prompt instead.
 
 const dimensionAssessment = z.object({
-  score: z.number().int().nullable(),
+  score: z.number().nullable(),
   evidence: z.string(),
   gaps: z.array(z.string()),
   strengths: z.array(z.string()),
@@ -29,7 +31,7 @@ export const assessmentInputSchema = z.object({
 export type AssessmentInput = z.infer<typeof assessmentInputSchema>;
 
 export const assessmentOutputSchema = z.object({
-  overall_score: z.number().int(),
+  overall_score: z.number(),
   dimensions: z.record(z.string(), dimensionAssessment),
   candid_summary: z.string(),
   next_steps: z.array(nextStep),
