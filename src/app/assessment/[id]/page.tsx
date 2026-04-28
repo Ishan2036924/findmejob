@@ -23,7 +23,7 @@ type AssessmentRow = {
   rubric_version: string;
   model: string;
   overall_score: number;
-  dimensions: Record<string, DimensionAssessment>;
+  dimensions: DimensionAssessment[];
   candid_summary: string;
   next_steps: NextStep[];
   created_at: string;
@@ -115,8 +115,8 @@ export default async function AssessmentPage({
             <h2 className="text-xl font-semibold tracking-tight">How you score against the rubric</h2>
           </header>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {Object.entries(assessment.dimensions).map(([name, dim]) => (
-              <DimensionCard key={name} name={name} dim={dim} />
+            {assessment.dimensions.map((dim) => (
+              <DimensionCard key={dim.name} name={dim.name} dim={dim} />
             ))}
           </div>
         </section>

@@ -68,6 +68,10 @@ export async function triggerAssessment(): Promise<TriggerAssessmentResult> {
         .update({ resume_json: resumeJson, updated_at: new Date().toISOString() })
         .eq('id', user.id);
     } catch (err) {
+      console.error('[triggerAssessment] resume parser failed', {
+        userId: user.id,
+        error: err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
+      });
       return {
         ok: false,
         error: `Resume parser failed: ${err instanceof Error ? err.message : 'unknown'}`,
@@ -91,6 +95,11 @@ export async function triggerAssessment(): Promise<TriggerAssessmentResult> {
   try {
     assessmentResult = await runAssessment(assessmentInput);
   } catch (err) {
+    console.error('[triggerAssessment] assessment call failed', {
+      userId: user.id,
+      roleFamily: profile.target_role_family,
+      error: err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,
+    });
     return {
       ok: false,
       error: `Assessment failed: ${err instanceof Error ? err.message : 'unknown'}`,
@@ -117,6 +126,10 @@ export async function triggerAssessment(): Promise<TriggerAssessmentResult> {
     .single();
 
   if (insertErr || !inserted) {
+    console.error('[triggerAssessment] failed to insert assessment row', {
+      userId: user.id,
+      error: insertErr,
+    });
     return {
       ok: false,
       error: `Failed to save assessment: ${insertErr?.message ?? 'unknown'}`,

@@ -22,9 +22,10 @@ export const ASSESSMENT_SYSTEM = `You are an expert career coach who delivers ca
 ## OUTPUT FORMAT
 Return a JSON object matching the supplied schema. No prose outside the JSON.
 
-- overall_score (0-100): weighted average per the rubric weights. If 2+ dimensions are insufficient-evidence, cap overall at 60.
-- dimensions: keys match the rubric's dimension names exactly. Each dimension has:
-  - score (0-100 or null if insufficient evidence)
+- overall_score (integer 0-100): weighted average per the rubric weights. If 2+ dimensions are insufficient-evidence, cap overall at 60.
+- dimensions: ARRAY of dimension objects. One object per dimension in the rubric, in the same order as the rubric. Each dimension object:
+  - name: the dimension's exact key from the rubric (e.g., "technical_depth")
+  - score (integer 0-100, or null if insufficient evidence)
   - evidence: 1-3 sentences quoting exact resume phrases that drove the score
   - gaps: array of 0-5 specific missing items (skills, experiences, signals)
   - strengths: array of 0-5 specific present items
