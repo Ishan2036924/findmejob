@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { profileSchema } from './profile';
 
+// See notes in ./assessment.ts re: no .min()/.max() on integers/arrays for
+// LLM-output compatibility. Constraints described in the system prompt.
+
 export const matchScoreInputSchema = z.object({
   profile: profileSchema,
   job: z.object({
@@ -12,9 +15,9 @@ export const matchScoreInputSchema = z.object({
 export type MatchScoreInput = z.infer<typeof matchScoreInputSchema>;
 
 export const matchScoreOutputSchema = z.object({
-  score: z.number().int().min(0).max(100),
+  score: z.number().int(),
   reasoning: z.string(),
-  gaps: z.array(z.string()).max(3),
-  strengths: z.array(z.string()).max(3),
+  gaps: z.array(z.string()),
+  strengths: z.array(z.string()),
 });
 export type MatchScoreOutput = z.infer<typeof matchScoreOutputSchema>;

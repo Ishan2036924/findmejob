@@ -1,8 +1,14 @@
 import { z } from 'zod';
 import { profileSchema } from './profile';
 
+// Schema notes for LLM-output compatibility (Anthropic + OpenAI strict modes):
+//   - No .min()/.max() on integers — providers reject `minimum`/`maximum` on type:integer
+//   - No .min()/.max() on arrays — providers reject `minItems`/`maxItems`
+//   - Constraints are described in the system prompt instead and enforced
+//     post-hoc with .refine() if needed.
+
 const dimensionAssessment = z.object({
-  score: z.number().int().min(0).max(100).nullable(),
+  score: z.number().int().nullable(),
   evidence: z.string(),
   gaps: z.array(z.string()),
   strengths: z.array(z.string()),
@@ -23,9 +29,9 @@ export const assessmentInputSchema = z.object({
 export type AssessmentInput = z.infer<typeof assessmentInputSchema>;
 
 export const assessmentOutputSchema = z.object({
-  overall_score: z.number().int().min(0).max(100),
+  overall_score: z.number().int(),
   dimensions: z.record(z.string(), dimensionAssessment),
   candid_summary: z.string(),
-  next_steps: z.array(nextStep).min(3).max(7),
+  next_steps: z.array(nextStep),
 });
 export type AssessmentOutput = z.infer<typeof assessmentOutputSchema>;
