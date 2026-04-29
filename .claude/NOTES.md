@@ -139,17 +139,22 @@ All LLM calls go through Vercel AI Gateway via plain `provider/model` strings. R
 
 Implementation: `model: 'provider/model-id'` in AI SDK calls (e.g., `model: 'anthropic/claude-sonnet-4-6'`). Default global provider via `globalThis.AI_SDK_DEFAULT_PROVIDER` in `instrumentation.ts`.
 
-### Workload → model mapping (locked 2026-04-27)
+### Workload → model mapping (revised 2026-04-29)
+
+**Cost-policy rule:** Sonnet only for moat features. Mini for everything else, no exceptions. New features default to mini; Sonnet requires explicit justification (must be brand-defining + voice-critical).
 
 | Workload                                                            | Model                            | Why                                                                                                       |
 |---------------------------------------------------------------------|----------------------------------|-----------------------------------------------------------------------------------------------------------|
-| **Orchestrator** (multi-tool routing in Vercel Workflow DevKit)     | `anthropic/claude-sonnet-4-6`    | SOTA non-reasoning tool use; lowest tool-call hallucination rate. The orchestrator's wrong call cascades — accuracy matters more than cost. |
-| **Profile assessment** (the moat — rubric-grounded, candid voice)   | `anthropic/claude-sonnet-4-6`    | Multi-section rubric depth + naturally calibrated "candid without mean" voice + grounded evidence extraction. |
+| **Profile assessment** (rubric-grounded, candid voice — the brand)  | `anthropic/claude-sonnet-4-6`    | Multi-section rubric depth + naturally calibrated "candid without mean" voice + grounded evidence extraction. Mini's voice slips into generic AI prose. |
 | **Resume tailoring** (edit-via-JSON, coherence-critical)            | `anthropic/claude-sonnet-4-6`    | Cross-section coherence (voice, dates, quantification) is where mini fails most visibly. The resume is the most-shared artifact — quality is brand. |
-| Everything else: cover letter, interview Qs, outreach, company brief, roadmap synthesis, job match scoring, ghost-job classification, light extraction | `openai/gpt-4.1-mini` | Best-in-class strict JSON schema. Reliability over Flash-Lite chosen by user (see Lessons). 1M context, $0.40/$1.60 per 1M. |
-| Embeddings (defer until Slice 1 implementation)                     | TBD — Voyage v4 or `openai/text-embedding-3-large` | Decide when we know corpus size + recall targets.                                                      |
+| **Everything else** — cover letter, company brief, interview Qs, outreach drafts, practice mode, roadmap synthesis, job match scoring, ghost-job classification, resume parsing, job extraction (paste-a-job), **career agent (Slice 3)**, memory distiller, thread summarizer | `openai/gpt-4.1-mini` | Cost-policy rule. Mini is good enough at every non-moat task at 1/8 the cost. The career agent reaches mini specifically at user's 2026-04-29 directive — voice tradeoff accepted vs. cost. |
+| Embeddings (Slice 4+)                                               | TBD — Voyage v4 or `openai/text-embedding-3-large` | Decide when we know corpus size + recall targets.                                                      |
 
-**Why we did NOT default to Gemini 2.5 Flash-Lite for scoring** (user override 2026-04-27): Flash-Lite is ~4× cheaper but its strict-JSON reliability lags GPT-4.1 mini. User judged the quality risk not worth the savings at beta scale. Held in reserve via AI Gateway — one-line swap available if production-scale cost on mini becomes the bottleneck (revisit trigger documented below).
+**Dropped from Sonnet (was on prior version of this map):**
+- ~~Orchestrator~~ — pattern abandoned. Slice 2 uses lazy per-button artifact generation, not multi-agent orchestration. No orchestrator role exists.
+- ~~Career agent~~ — was Slice 3 plan to put on Sonnet for tool-use accuracy. Moved to mini per cost policy. Mini's tool-use is ~95% accurate (vs Sonnet's ~99%); the 4% gap is acceptable for $0.10→$0.01 per agent turn.
+
+**Why we did NOT default to Gemini 2.5 Flash-Lite for scoring** (user override 2026-04-27): Flash-Lite is ~4× cheaper but its strict-JSON reliability lags GPT-4.1 mini. Held in reserve via AI Gateway — one-line swap available if production-scale cost on mini becomes the bottleneck.
 
 ### Comparison table (April 2026, per 1M tokens via AI Gateway list price)
 

@@ -19,9 +19,9 @@ Every session starts here. Read this file first. It tells you what to read next 
 
 ## What CareerForge is (one line)
 
-AI-native career platform: candid rubric-grounded profile assessment + personalized roadmap + verified job aggregation + on-click tailored bundle (resume, cover letter, interview prep, outreach, company brief) per job.
+AI-native career platform: candid rubric-grounded profile assessment + personalized roadmap + verified job aggregation + per-job on-demand artifacts (tailored resume, cover letter, interview prep, outreach drafts, company brief) + personalized career agent with full longitudinal context of the user's job-search history.
 
-Target user (v1): job seekers and students in India (Delhi NCR primary), expanding global.
+**Target user (v1):** job seekers and students in **India + USA, equal priority.** No primary-vs-secondary market split. Default `target_location` is user-picked at onboarding.
 
 ---
 
@@ -79,7 +79,7 @@ The destination is the full vision in the original architecture prompt. The path
 | 2     | **Per-job dashboard** w/ on-demand artifact buttons: cover letter, company brief, interview Qs, outreach, **practice mode** (mock-Q&A) | 3–4w  |
 | —     | **Beta opens.** Onboard 20–50 users. Capture outcomes.                                                                              | —     |
 | 3     | Roadmap engine (skill→resource map) + portfolio analysis + **application analytics** ("top 3 gaps across applied JDs")              | 4w    |
-| 4     | **Daily cron ingestion** + multi-source (Greenhouse/Lever/Ashby/AngelList) + ghost-job detection                                     | 4w    |
+| 4     | **Daily cron ingestion** + multi-source (Greenhouse/Lever/Ashby/AngelList + JSearch India + US) + curated US/India company list + ghost-job detection | 4w    |
 | 5     | LinkedIn analysis (paste-in only) + realistic-chance estimator (calibrated post-data)                                                | 3w    |
 | —     | **GA + paid tiers.** Payment structure decided here with real usage data.                                                            | —     |
 
@@ -127,8 +127,8 @@ When NOTES.md crosses 600 lines, propose splitting one well-isolated section int
 - **Frontend + API:** Next.js App Router on Vercel (Fluid Compute).
 - **DB + Auth + Storage:** Supabase (Postgres + RLS + Auth + Storage).
 - **LLM routing:** Vercel AI Gateway (`provider/model` strings).
-- **Primary LLM:** Anthropic Sonnet 4.6 (assessment + resume tailoring + orchestrator). BYOK direct via `@ai-sdk/anthropic`.
-- **Secondary LLM:** OpenAI GPT-4.1 mini (everything else: scoring, parsing, cover letter, brief, interview Qs, outreach, practice). BYOK direct via `@ai-sdk/openai`.
+- **Primary LLM:** Anthropic Sonnet 4.6 — moat features ONLY (profile assessment + resume tailoring). BYOK direct via `@ai-sdk/anthropic`. Prompt caching mandatory.
+- **Secondary LLM:** OpenAI GPT-4.1 mini — everything else, no exceptions: cover letter, company brief, interview Qs, outreach drafts, practice mode, roadmap, match scoring, resume parsing, job extraction, **career agent (Slice 3)**, memory distiller, thread summarizer. BYOK direct via `@ai-sdk/openai`. New features default here.
 - **Resume engine:** LaTeX via Tectonic, edit-via-JSON pattern, compiled in Vercel Sandbox.
 - **Background jobs:** Vercel Queues (beta) + cron.
 - **Multi-agent orchestration:** Vercel Workflow DevKit (durable, pause/resume, retries).
