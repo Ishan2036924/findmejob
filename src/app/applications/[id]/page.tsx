@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Building2,
   ExternalLink,
-  FileText,
   HelpCircle,
   LogOut,
   MapPin,
@@ -20,6 +19,8 @@ import { ScoreRing } from '@/components/score-ring';
 import { StatusPills } from './status-pills';
 import { NotesEditor } from './notes-editor';
 import { ArtifactCard } from './artifact-card';
+import { ResumeCard } from './resume-card';
+import { getLatestTailoredResumeForJob } from '@/lib/resume/queries';
 
 export const metadata = { title: 'Application · findmejob' };
 
@@ -45,6 +46,8 @@ export default async function ApplicationDetailPage({
 
   const app = await getApplicationById(id);
   if (!app) notFound();
+
+  const tailoredResume = await getLatestTailoredResumeForJob(app.job.id);
 
   return (
     <div className="relative flex min-h-screen flex-col">
@@ -153,11 +156,9 @@ export default async function ApplicationDetailPage({
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <ArtifactCard
-              icon={FileText}
-              title="Tailored resume"
-              description="Edit your resume to match this JD. PDF output, ATS-friendly."
-              comingIn="Step 6a"
+            <ResumeCard
+              applicationId={app.id}
+              initialResumeId={tailoredResume?.id ?? null}
             />
             <ArtifactCard
               icon={PenLine}
