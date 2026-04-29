@@ -3,7 +3,7 @@
 // seniority. Realistic enough to exercise the match-scoring agent.
 
 export type RawJob = {
-  source: 'jsearch';
+  source: 'jsearch' | 'greenhouse' | 'lever' | 'ashby';
   source_id: string;
   source_url: string;
   title: string;

@@ -1,0 +1,124 @@
+import 'server-only';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { fetchJobs as fetchJSearchJobs } from './jsearch';
+import { fetchGreenhouseJobs, fetchLeverJobs, fetchAshbyJobs } from './ats';
+import { CURATED_COMPANIES } from './curated-companies';
+import type { RawJob } from './mock-jobs';
+
+export type IngestResult = {
+  totalFetched: number;
+  totalUpserted: number;
+  bySource: Record<string, number>;
+  errors: { source: string; slug?: string; error: string }[];
+  durationMs: number;
+};
+
+const ATS_BATCH_SIZE = 6; // parallel fetches per ATS group
+const JSEARCH_DEFAULT_QUERIES = [
+  'software engineer india',
+  'data scientist india',
+  'machine learning engineer united states',
+  'software engineer united states',
+];
+
+/**
+ * System-wide job ingest. Fetches from JSearch (if key set) + every curated
+ * Greenhouse/Lever/Ashby company in parallel batches, then upserts to the
+ * jobs table via service-role.
+ *
+ * Idempotent — safe to run multiple times. (source, source_id) is the conflict
+ * key; on collision we update last_seen_at + the JD text in case it changed.
+ *
+ * Designed to be called by:
+ *   - Daily Vercel cron at /api/cron/ingest-jobs
+ *   - Future admin debug endpoint
+ *   - Per-user refreshFeed() falls back to it (legacy)
+ */
+export async function ingestJobs(opts?: {
+  jsearchQueries?: string[];
+}): Promise<IngestResult> {
+  const start = Date.now();
+  const errors: IngestResult['errors'] = [];
+  const allJobs: RawJob[] = [];
+
+  // 1. JSearch (if API key)
+  if (process.env.JSEARCH_API_KEY) {
+    const queries = opts?.jsearchQueries ?? JSEARCH_DEFAULT_QUERIES;
+    for (const query of queries) {
+      try {
+        const jobs = await fetchJSearchJobs({ query });
+        allJobs.push(...jobs);
+      } catch (err) {
+        errors.push({ source: 'jsearch', error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+  }
+
+  // 2. ATS endpoints (parallel batches per ATS)
+  const greenhouse = CURATED_COMPANIES.filter((c) => c.ats === 'greenhouse');
+  const lever = CURATED_COMPANIES.filter((c) => c.ats === 'lever');
+  const ashby = CURATED_COMPANIES.filter((c) => c.ats === 'ashby');
+
+  async function runBatch<T>(
+    items: T[],
+    fn: (item: T) => Promise<RawJob[]>,
+    label: string,
+  ) {
+    for (let i = 0; i < items.length; i += ATS_BATCH_SIZE) {
+      const batch = items.slice(i, i + ATS_BATCH_SIZE);
+      const results = await Promise.allSettled(batch.map(fn));
+      results.forEach((r, idx) => {
+        if (r.status === 'fulfilled') {
+          allJobs.push(...r.value);
+        } else {
+          const item = batch[idx] as { slug?: string };
+          errors.push({
+            source: label,
+            slug: item.slug,
+            error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+          });
+        }
+      });
+    }
+  }
+
+  await runBatch(greenhouse, (c) => fetchGreenhouseJobs(c.slug, c.name), 'greenhouse');
+  await runBatch(lever, (c) => fetchLeverJobs(c.slug, c.name), 'lever');
+  await runBatch(ashby, (c) => fetchAshbyJobs(c.slug, c.name), 'ashby');
+
+  // 3. Upsert (service-role, bypasses RLS — jobs are public-read)
+  let upserted = 0;
+  if (allJobs.length > 0) {
+    const admin = createAdminClient();
+    const rows = allJobs.map((j) => ({
+      source: j.source,
+      source_id: j.source_id,
+      source_url: j.source_url,
+      title: j.title,
+      company: j.company,
+      location: j.location,
+      description: j.description,
+      posted_at: j.posted_at,
+      last_seen_at: new Date().toISOString(),
+    }));
+    const { error } = await admin
+      .from('jobs')
+      .upsert(rows, { onConflict: 'source,source_id', ignoreDuplicates: false });
+    if (error) {
+      errors.push({ source: 'db_upsert', error: error.message });
+    } else {
+      upserted = rows.length;
+    }
+  }
+
+  const bySource: Record<string, number> = {};
+  for (const j of allJobs) bySource[j.source] = (bySource[j.source] ?? 0) + 1;
+
+  return {
+    totalFetched: allJobs.length,
+    totalUpserted: upserted,
+    bySource,
+    errors,
+    durationMs: Date.now() - start,
+  };
+}

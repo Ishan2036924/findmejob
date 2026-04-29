@@ -4,35 +4,26 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { fetchJobs } from './jsearch';
+import { ingestJobs } from './ingest';
 import { runMatchScore } from '@/lib/ai/agents/match-score-agent';
 import type { Profile, RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
 
 const SCORING_CONCURRENCY = 5;
+const FRESH_INGEST_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h
 
 export type RefreshFeedResult =
   | { ok: true; ingested: number; scored: number }
   | { ok: false; error: string };
 
-const QUERIES_BY_ROLE: Record<RoleFamily, string> = {
-  swe: 'software engineer india',
-  data_ml: 'machine learning engineer india',
-  product: 'product manager india',
-  design: 'product designer india',
-  devops: 'devops engineer india',
-  sales: 'sales manager india',
-  marketing: 'marketing manager india',
-  ops: 'operations manager india',
-  other: 'engineer india',
-};
-
 /**
- * One-click feed refresh:
- *   1. Fetch jobs from JSearch (or mock fallback)
- *   2. Upsert into the jobs table via service-role
- *   3. Score every unscored job for the current user (parallel, batched)
- *   4. Insert match_scores
- *   5. Revalidate /jobs
+ * One-click feed refresh from the user's perspective:
+ *   1. If the most recent job in the table is older than ~6h, run a full
+ *      multi-source ingest (cron normally handles this daily; manual fallback).
+ *   2. Score every unscored job for the current user (parallel, batched).
+ *   3. Revalidate /jobs.
+ *
+ * Decoupled from the daily cron at /api/cron/ingest-jobs which is the
+ * primary ingest path system-wide.
  */
 export async function refreshFeed(): Promise<RefreshFeedResult> {
   const supabase = await createClient();
@@ -53,39 +44,33 @@ export async function refreshFeed(): Promise<RefreshFeedResult> {
 
   const admin = createAdminClient();
 
-  // 1. Fetch + upsert jobs
-  let ingested = 0;
-  try {
-    const query = QUERIES_BY_ROLE[profile.target_role_family as RoleFamily] ?? 'engineer india';
-    const raw = await fetchJobs({ query });
+  // 1. Decide whether to run a fresh ingest
+  const { data: latestJob } = await admin
+    .from('jobs')
+    .select('last_seen_at')
+    .order('last_seen_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-    if (raw.length > 0) {
-      const rows = raw.map((j) => ({
-        source: j.source,
-        source_id: j.source_id,
-        source_url: j.source_url,
-        title: j.title,
-        company: j.company,
-        location: j.location,
-        description: j.description,
-        posted_at: j.posted_at,
-        last_seen_at: new Date().toISOString(),
-      }));
-      const { error } = await admin
-        .from('jobs')
-        .upsert(rows, { onConflict: 'source,source_id', ignoreDuplicates: false });
-      if (error) {
-        console.error('[refreshFeed] upsert jobs failed', { error });
-        return { ok: false, error: `Job ingestion failed: ${error.message}` };
+  const stale =
+    !latestJob ||
+    Date.now() - new Date(latestJob.last_seen_at).getTime() > FRESH_INGEST_WINDOW_MS;
+
+  let ingested = 0;
+  if (stale) {
+    try {
+      const result = await ingestJobs();
+      ingested = result.totalUpserted;
+      if (result.errors.length > 0) {
+        console.warn('[refreshFeed] some sources errored', {
+          count: result.errors.length,
+          first: result.errors[0],
+        });
       }
-      ingested = raw.length;
+    } catch (err) {
+      console.error('[refreshFeed] ingestJobs threw', { err });
+      // Non-fatal — proceed with whatever's in the DB.
     }
-  } catch (err) {
-    console.error('[refreshFeed] fetchJobs threw', { err });
-    return {
-      ok: false,
-      error: `Job source error: ${err instanceof Error ? err.message : 'unknown'}`,
-    };
   }
 
   // 2. Find unscored jobs for this user
@@ -129,7 +114,15 @@ export async function refreshFeed(): Promise<RefreshFeedResult> {
     const inserts = results
       .filter((r) => r.status === 'fulfilled')
       .map((r) => {
-        const { jobId, score } = (r as PromiseFulfilledResult<{ jobId: string; score: { output: { score: number; reasoning: string; gaps: string[]; strengths: string[] }; model: string } }>).value;
+        const { jobId, score } = (
+          r as PromiseFulfilledResult<{
+            jobId: string;
+            score: {
+              output: { score: number; reasoning: string; gaps: string[]; strengths: string[] };
+              model: string;
+            };
+          }>
+        ).value;
         return {
           profile_id: user.id,
           job_id: jobId,
