@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runJobExtractor } from '@/lib/ai/agents/job-extractor-agent';
 import { runMatchScore } from '@/lib/ai/agents/match-score-agent';
+import { enqueueCompanyClassification } from '@/lib/applications/classify';
 import type { Profile, RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
 
 export type PasteJobResult =
@@ -99,6 +100,9 @@ async function persistAndScore(
     console.error('[pasteJob] insert application failed', { appErr });
     return { ok: false, error: appErr?.message ?? 'Failed to create application.' };
   }
+
+  // 3a. Fire-and-forget company-type classification (don't await).
+  void enqueueCompanyClassification(app.id);
 
   // 3. Fire-and-mostly-wait match score (admin client, bypasses match_scores RLS)
   try {

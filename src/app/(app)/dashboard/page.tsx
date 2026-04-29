@@ -6,6 +6,7 @@ import { ArrowRight, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROLE_FAMILIES, SENIORITY_OPTIONS } from '@/app/onboarding/options';
 import { RunAssessmentButton } from './run-assessment-button';
+import { UpdateResumeDialog } from '@/components/profile/update-resume-dialog';
 
 export const metadata = {
   title: 'Dashboard · findmejob',
@@ -33,6 +34,9 @@ export default async function DashboardPage() {
             Targeting <span className="text-foreground">{roleLabel}</span> · {seniorityLabel} ·{' '}
             {profile!.target_location}
           </p>
+          <div className="mt-2">
+            <UpdateResumeDialog />
+          </div>
         </div>
 
         <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2">

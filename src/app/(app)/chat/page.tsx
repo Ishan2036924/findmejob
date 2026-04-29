@@ -27,13 +27,13 @@ export default async function ChatIndexPage() {
             Start a new conversation
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Career agent ships next. The shell + history is live — kick off a
-            thread now and the agent will pick it up automatically.
+            Start a new conversation. Ask anything about your job search — I
+            have full context of your applications, scores, and assessment.
           </p>
           <form action={createThread} className="mt-6">
             <Button type="submit" size="lg" className="gap-2">
               <MessageSquare className="size-4" strokeWidth={1.5} />
-              Start a new conversation
+              New chat
             </Button>
           </form>
         </div>

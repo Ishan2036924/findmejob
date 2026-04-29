@@ -14,7 +14,7 @@ const NAV_ITEMS: SidebarNavItem[] = [
   { href: '/jobs', label: 'Jobs', icon: Briefcase },
   { href: '/applications', label: 'Applications', icon: FolderOpen },
   { href: '/chat', label: 'Chat', icon: MessageSquare },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3, soon: true },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
 export async function Sidebar() {

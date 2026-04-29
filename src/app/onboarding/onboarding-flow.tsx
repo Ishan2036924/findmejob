@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { ROLE_FAMILIES, SENIORITY_OPTIONS } from './options';
 import { saveOnboarding } from '@/lib/profile/actions';
 import type { RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
+import { ResumeUpload } from '@/components/profile/resume-upload';
 
 type Step = 'goal' | 'resume' | 'context';
 
@@ -214,27 +215,16 @@ export function OnboardingFlow({
           >
             <Header
               eyebrow="Your resume"
-              title="Paste your resume."
-              subtitle="Plain text works best. PDF upload lands in the next release — for now, copy-paste keeps the parser unambiguous."
+              title="Add your resume."
+              subtitle="Upload a PDF and we'll extract the text, or paste it directly. Both feed the same parser."
             />
 
-            <div className="flex flex-col gap-2">
-              <Textarea
-                value={form.raw_resume_text}
-                onChange={(e) => setForm((f) => ({ ...f, raw_resume_text: e.target.value }))}
-                placeholder="Paste your full resume text here — name, email, experience, education, skills, projects."
-                className="min-h-[360px] resize-y font-mono text-xs leading-relaxed"
-              />
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  {form.raw_resume_text.length} chars
-                  {form.raw_resume_text.length > 0 && form.raw_resume_text.length < 100 && (
-                    <span className="ml-2 text-amber-400/80">need at least 100</span>
-                  )}
-                </span>
-                <span className="font-mono opacity-60">private to your account</span>
-              </div>
-            </div>
+            <ResumeUpload
+              initialText={form.raw_resume_text}
+              onTextChange={(text) =>
+                setForm((f) => ({ ...f, raw_resume_text: text }))
+              }
+            />
           </motion.div>
         )}
 

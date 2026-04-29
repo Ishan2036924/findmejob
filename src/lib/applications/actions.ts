@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { enqueueCompanyClassification } from './classify';
 import type { ApplicationStatus } from './queries';
 
 export type SaveJobResult =
@@ -38,6 +39,9 @@ export async function saveJob(jobId: string): Promise<SaveJobResult> {
     console.error('[saveJob] insert failed', { jobId, userId: user.id, error });
     return { ok: false, error: error?.message ?? 'Failed to save.' };
   }
+
+  // Fire-and-forget company-type classification (don't await).
+  void enqueueCompanyClassification(inserted.id);
 
   revalidatePath('/jobs');
   revalidatePath('/applications');
