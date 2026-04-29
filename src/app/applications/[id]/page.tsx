@@ -1,16 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import {
-  ArrowLeft,
-  Building2,
-  ExternalLink,
-  HelpCircle,
-  LogOut,
-  MapPin,
-  Mic,
-  PenLine,
-  Send,
-} from 'lucide-react';
+import { ArrowLeft, ExternalLink, LogOut, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { signOut } from '@/lib/auth/actions';
 import { getApplicationById } from '@/lib/applications/queries';
@@ -18,9 +8,19 @@ import { getCurrentUserProfile, isOnboardingComplete } from '@/lib/profile/queri
 import { ScoreRing } from '@/components/score-ring';
 import { StatusPills } from './status-pills';
 import { NotesEditor } from './notes-editor';
-import { ArtifactCard } from './artifact-card';
 import { ResumeCard } from './resume-card';
+import { CoverLetterCard } from './cover-letter-card';
+import { CompanyBriefCard } from './company-brief-card';
+import { InterviewQuestionsCard } from './interview-questions-card';
+import { OutreachCard } from './outreach-card';
+import { PracticeCard } from './practice-card';
 import { getLatestTailoredResumeForJob } from '@/lib/resume/queries';
+import { getLatestGenerationsByKind } from '@/lib/applications/generations';
+import { getPracticeSessions } from '@/lib/practice/queries';
+import type { CoverLetterOutput } from '@/lib/ai/schemas/cover-letter';
+import type { CompanyBriefOutput } from '@/lib/ai/schemas/company-brief';
+import type { InterviewQuestionsOutput } from '@/lib/ai/schemas/interview-questions';
+import type { OutreachOutput } from '@/lib/ai/schemas/outreach';
 
 export const metadata = { title: 'Application · findmejob' };
 
@@ -47,7 +47,16 @@ export default async function ApplicationDetailPage({
   const app = await getApplicationById(id);
   if (!app) notFound();
 
-  const tailoredResume = await getLatestTailoredResumeForJob(app.job.id);
+  const [tailoredResume, generations, practiceSessions] = await Promise.all([
+    getLatestTailoredResumeForJob(app.job.id),
+    getLatestGenerationsByKind(app.id),
+    getPracticeSessions(app.id),
+  ]);
+
+  const coverLetter = generations.get('cover_letter')?.output as CoverLetterOutput | undefined;
+  const companyBrief = generations.get('company_brief')?.output as CompanyBriefOutput | undefined;
+  const interviewQs = generations.get('interview_questions')?.output as InterviewQuestionsOutput | undefined;
+  const outreach = generations.get('outreach_drafts')?.output as OutreachOutput | undefined;
 
   return (
     <div className="relative flex min-h-screen flex-col">
@@ -160,35 +169,26 @@ export default async function ApplicationDetailPage({
               applicationId={app.id}
               initialResumeId={tailoredResume?.id ?? null}
             />
-            <ArtifactCard
-              icon={PenLine}
-              title="Cover letter"
-              description="Personal cover letter tied to this role and your experience."
-              comingIn="Slice 2"
+            <CoverLetterCard
+              applicationId={app.id}
+              initialOutput={coverLetter ?? null}
             />
-            <ArtifactCard
-              icon={Building2}
-              title="About the company"
-              description="Recent news, funding, culture signals — context before applying."
-              comingIn="Slice 2"
+            <CompanyBriefCard
+              applicationId={app.id}
+              initialOutput={companyBrief ?? null}
             />
-            <ArtifactCard
-              icon={HelpCircle}
-              title="Interview questions"
-              description="Likely questions for this JD with STAR scaffolding for behavioral."
-              comingIn="Slice 2"
+            <InterviewQuestionsCard
+              applicationId={app.id}
+              initialOutput={interviewQs ?? null}
             />
-            <ArtifactCard
-              icon={Send}
-              title="Outreach drafts"
-              description="DM templates for recruiter, hiring manager, or referral."
-              comingIn="Slice 2"
+            <OutreachCard
+              applicationId={app.id}
+              initialOutput={outreach ?? null}
             />
-            <ArtifactCard
-              icon={Mic}
-              title="Practice answers"
-              description="Type your answer to a generated question, get scored feedback."
-              comingIn="Slice 2"
+            <PracticeCard
+              applicationId={app.id}
+              hasInterviewQuestions={!!interviewQs}
+              sessionCount={practiceSessions.length}
             />
           </div>
         </section>

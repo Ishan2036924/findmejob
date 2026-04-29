@@ -3,3 +3,8 @@ export * from './tailor-agent';
 export * from './match-score-agent';
 export * from './resume-parser-agent';
 export * from './job-extractor-agent';
+export * from './cover-letter-agent';
+export * from './company-brief-agent';
+export * from './interview-questions-agent';
+export * from './outreach-agent';
+export * from './practice-agent';
