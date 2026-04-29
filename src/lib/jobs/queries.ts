@@ -17,6 +17,7 @@ export type FeedJob = {
     gaps: string[];
     strengths: string[];
   } | null;
+  application_id: string | null; // non-null = already saved by current user
 };
 
 export type FeedResult = {
@@ -60,6 +61,13 @@ export async function getFeed(): Promise<FeedResult> {
 
   const scoreMap = new Map(scores?.map((s) => [s.job_id, s]) ?? []);
 
+  const { data: applications } = await supabase
+    .from('applications')
+    .select('id, job_id')
+    .eq('profile_id', user.id);
+
+  const appMap = new Map(applications?.map((a) => [a.job_id, a.id]) ?? []);
+
   const jobs: FeedJob[] = jobsRaw.map((j) => ({
     id: j.id,
     title: j.title,
@@ -77,6 +85,7 @@ export async function getFeed(): Promise<FeedResult> {
           strengths: scoreMap.get(j.id)!.strengths,
         }
       : null,
+    application_id: appMap.get(j.id) ?? null,
   }));
 
   // Sort: scored (highest first) → unscored (most recent first)

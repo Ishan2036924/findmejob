@@ -1,6 +1,7 @@
 import { ArrowUpRight, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FeedJob } from '@/lib/jobs/queries';
+import { SaveJobButton } from './save-job-button';
 
 function scoreClass(score: number): string {
   if (score >= 75) return 'text-emerald-400';
@@ -48,16 +49,19 @@ export function JobCard({ job }: { job: FeedJob }) {
           </div>
         </div>
 
-        {score !== null ? (
-          <div className="flex shrink-0 flex-col items-end gap-0.5">
-            <span className={cn('font-mono text-2xl tabular-nums leading-none tracking-tight', scoreClass(score))}>
-              {score}
-            </span>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">match</span>
-          </div>
-        ) : (
-          <span className="font-mono text-xs text-muted-foreground/60">—</span>
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {score !== null ? (
+            <div className="flex flex-col items-end gap-0.5">
+              <span className={cn('font-mono text-2xl tabular-nums leading-none tracking-tight', scoreClass(score))}>
+                {score}
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">match</span>
+            </div>
+          ) : (
+            <span className="font-mono text-xs text-muted-foreground/60">—</span>
+          )}
+          <SaveJobButton jobId={job.id} initialApplicationId={job.application_id} />
+        </div>
       </div>
 
       {job.match && (

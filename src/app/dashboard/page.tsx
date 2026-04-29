@@ -81,13 +81,22 @@ export default async function DashboardPage() {
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               We pull live {roleLabel} postings, score every one against your rubric, and sort by best fit. Click through to apply.
             </p>
-            <div className="mt-5">
+            <div className="mt-5 flex flex-wrap gap-2">
               <Link
                 href="/jobs"
                 className={cn(buttonVariants({ size: 'lg' }), 'gap-2')}
               >
                 <Briefcase className="size-4" strokeWidth={1.5} />
                 Browse jobs
+              </Link>
+              <Link
+                href="/applications"
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'lg' }),
+                  'gap-2',
+                )}
+              >
+                Applications
                 <ArrowRight className="size-4" strokeWidth={1.5} />
               </Link>
             </div>
