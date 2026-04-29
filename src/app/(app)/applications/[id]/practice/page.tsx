@@ -1,8 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { signOut } from '@/lib/auth/actions';
+import { ArrowLeft } from 'lucide-react';
 import { getApplicationById } from '@/lib/applications/queries';
 import { getLatestGenerationsByKind } from '@/lib/applications/generations';
 import { getPracticeSessions } from '@/lib/practice/queries';
@@ -42,13 +40,8 @@ export default async function PracticePage({
   ];
 
   return (
-    <div className="relative flex min-h-screen flex-col">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[40rem] [background:radial-gradient(60%_50%_at_50%_0%,rgba(99,102,241,0.10),transparent_70%)]"
-      />
-
-      <header className="flex h-16 items-center justify-between border-b border-white/5 px-6 sm:px-10">
+    <div className="flex flex-col">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-12 sm:px-10">
         <Link
           href={`/applications/${id}`}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -56,15 +49,7 @@ export default async function PracticePage({
           <ArrowLeft className="size-4" />
           Back to application
         </Link>
-        <form action={signOut}>
-          <Button type="submit" variant="ghost" size="sm" className="gap-2">
-            <LogOut className="size-3.5" strokeWidth={1.5} />
-            Sign out
-          </Button>
-        </form>
-      </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-12 sm:px-10">
         <div className="flex flex-col gap-2">
           <span className="text-xs uppercase tracking-wider text-muted-foreground">
             Practice mode · {app.job.title} at {app.job.company}

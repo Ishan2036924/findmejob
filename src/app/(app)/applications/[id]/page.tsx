@@ -1,8 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, ExternalLink, LogOut, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { signOut } from '@/lib/auth/actions';
+import { ArrowLeft, ExternalLink, MapPin } from 'lucide-react';
 import { getApplicationById } from '@/lib/applications/queries';
 import { getCurrentUserProfile, isOnboardingComplete } from '@/lib/profile/queries';
 import { ScoreRing } from '@/components/score-ring';
@@ -59,29 +57,16 @@ export default async function ApplicationDetailPage({
   const outreach = generations.get('outreach_drafts')?.output as OutreachOutput | undefined;
 
   return (
-    <div className="relative flex min-h-screen flex-col">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[40rem] [background:radial-gradient(60%_50%_at_50%_0%,rgba(99,102,241,0.10),transparent_70%)]"
-      />
-
-      <header className="flex h-16 items-center justify-between border-b border-white/5 px-6 sm:px-10">
+    <div className="flex flex-col">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-6 py-12 sm:px-10">
         <Link
           href="/applications"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          Applications
+          Back to applications
         </Link>
-        <form action={signOut}>
-          <Button type="submit" variant="ghost" size="sm" className="gap-2">
-            <LogOut className="size-3.5" strokeWidth={1.5} />
-            Sign out
-          </Button>
-        </form>
-      </header>
 
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-12 px-6 py-12 sm:px-10">
         {/* Job header */}
         <section className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-1 flex-col gap-3">
