@@ -1,8 +1,10 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUserProfile, isOnboardingComplete } from '@/lib/profile/queries';
 import { signOut } from '@/lib/auth/actions';
-import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { ArrowRight, Briefcase, LogOut } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ROLE_FAMILIES, SENIORITY_OPTIONS } from '@/app/onboarding/options';
 import { RunAssessmentButton } from './run-assessment-button';
 
@@ -49,22 +51,46 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <div className="mt-12 rounded-2xl border border-white/10 bg-card/40 p-6 backdrop-blur">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
-            Profile assessment
-          </span>
-          <h2 className="mt-3 text-balance text-xl font-semibold tracking-tight">
-            {profile!.latest_assessment_id
-              ? 'Your assessment is ready.'
-              : 'Get a candid read on where you stand.'}
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            {profile!.latest_assessment_id
-              ? 'Open it to see the rubric breakdown, gaps, strengths, and next steps.'
-              : `We'll grade your resume against the ${roleLabel} rubric, surface specific gaps + strengths with evidence, and produce a prioritized action plan. ~30 seconds.`}
-          </p>
-          <div className="mt-5">
-            <RunAssessmentButton existingAssessmentId={profile!.latest_assessment_id} />
+        <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-card/40 p-6 backdrop-blur">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              Profile assessment
+            </span>
+            <h2 className="mt-3 text-balance text-lg font-semibold tracking-tight">
+              {profile!.latest_assessment_id
+                ? 'Your assessment is ready.'
+                : 'Get a candid read on where you stand.'}
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              {profile!.latest_assessment_id
+                ? 'Open it to see the rubric breakdown, gaps, strengths, and next steps.'
+                : `We'll grade your resume against the ${roleLabel} rubric, surface gaps + strengths with evidence. ~30 seconds.`}
+            </p>
+            <div className="mt-5">
+              <RunAssessmentButton existingAssessmentId={profile!.latest_assessment_id} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-card/40 p-6 backdrop-blur">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              Verified feed
+            </span>
+            <h2 className="mt-3 text-balance text-lg font-semibold tracking-tight">
+              See roles matched to your profile.
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              We pull live {roleLabel} postings, score every one against your rubric, and sort by best fit. Click through to apply.
+            </p>
+            <div className="mt-5">
+              <Link
+                href="/jobs"
+                className={cn(buttonVariants({ size: 'lg' }), 'gap-2')}
+              >
+                <Briefcase className="size-4" strokeWidth={1.5} />
+                Browse jobs
+                <ArrowRight className="size-4" strokeWidth={1.5} />
+              </Link>
+            </div>
           </div>
         </div>
       </main>
