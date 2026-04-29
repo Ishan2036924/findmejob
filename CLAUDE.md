@@ -1,10 +1,10 @@
 ---
 project: findmejob
 working_dir: /Users/ishansrivastava/Desktop/Projects/Findmejob
-phase: Slice 1 build (Step 1 done: design system + landing + auth pages)
-slice: Slice 1 in progress
-version: 0.6.0
-last_updated: 2026-04-27
+phase: Slice 1 build — Steps 1-5 shipped; Step 6 in progress
+slice: Slice 1 in progress (paste-a-job + applications shipping in Step 6c, LaTeX/PDF in 6a)
+version: 0.7.0
+last_updated: 2026-04-29
 production_url: https://findmejob-nu.vercel.app
 github_repo: https://github.com/Ishan2036924/findmejob
 primary_stack: Next.js (App Router) + Supabase + Vercel AI Gateway
@@ -59,11 +59,13 @@ If a section reference points to a file that doesn't exist or is empty, that sec
 
 ## Current focus
 
-**Phase:** 2 (Slice 1 architecture written, pending review) → Phase 3 (Supabase schema + RLS migrations) on approval.
+**Phase:** Slice 1 build, Step 6.
 
-**Active slice:** Slice 1 — profile assessment + match score + tailored resume (JSearch India only).
+**Shipped:** auth, onboarding, assessment (Sonnet), feed (JSearch with mock fallback), match scoring (mini), live at https://findmejob-nu.vercel.app.
 
-**Last decision:** Slice 1 architecture locked. 6-table data model (profiles, resumes, jobs, assessments, generations, match_scores). Single-pass Sonnet for tailoring (no WDK). Lazy match scoring with permanent caching. ~$75–80/mo at 100 users.
+**In flight:** Step 6 expansion to ship paste-a-job + applications log (formerly Slice 3) alongside the tailored resume PDF (originally just 6a). Order: 6c (applications shell) → 6b (paste-a-job) → 6a (LaTeX/Tectonic/Sandbox PDF).
+
+**Last decision (2026-04-29):** lazy per-button artifact generation, not eager bundles. Per-job dashboard at /applications/[id] has artifact buttons (cover letter, company brief, interview Qs, outreach, practice). Each is its own server action + DB row. Saves tokens on artifacts users don't ask for. Application tracker becomes the SHELL of Slice 2, not a separate Slice 3 feature.
 
 ---
 
@@ -71,20 +73,24 @@ If a section reference points to a file that doesn't exist or is empty, that sec
 
 The destination is the full vision in the original architecture prompt. The path is sliced.
 
-| Slice | Scope                                                                                  | Est.  |
-|-------|----------------------------------------------------------------------------------------|-------|
-| 1     | Profile assessment + match score + tailored resume against ONE source (JSearch)         | 4–6w  |
-| 2     | Add cover letter + interview Qs + outreach drafts to on-click bundle                    | 3–4w  |
-| —     | **Beta opens.** Onboard 20–50 users. Capture outcomes.                                  | —     |
-| 3     | Roadmap engine (skill→resource map) + portfolio analysis + company brief                | 4w    |
-| 4     | Multi-source ingestion (Greenhouse/Lever/Ashby) + ghost-job detection                   | 4w    |
-| 5     | LinkedIn analysis (paste-in / PDF only — NO auto-fetch) + realistic-chance estimator    | 3w    |
-| —     | **GA + paid tiers.** Payment structure decided here with real usage data.               | —     |
+| Slice | Scope                                                                                                                                | Est.  |
+|-------|--------------------------------------------------------------------------------------------------------------------------------------|-------|
+| 1     | Assessment + match score + JSearch feed + tailored resume PDF + **paste-a-job (URL/JD) + applications log**                         | 5–6w  |
+| 2     | **Per-job dashboard** w/ on-demand artifact buttons: cover letter, company brief, interview Qs, outreach, **practice mode** (mock-Q&A) | 3–4w  |
+| —     | **Beta opens.** Onboard 20–50 users. Capture outcomes.                                                                              | —     |
+| 3     | Roadmap engine (skill→resource map) + portfolio analysis + **application analytics** ("top 3 gaps across applied JDs")              | 4w    |
+| 4     | **Daily cron ingestion** + multi-source (Greenhouse/Lever/Ashby/AngelList) + ghost-job detection                                     | 4w    |
+| 5     | LinkedIn analysis (paste-in only) + realistic-chance estimator (calibrated post-data)                                                | 3w    |
+| —     | **GA + paid tiers.** Payment structure decided here with real usage data.                                                            | —     |
 
-Deferred and explicitly scoped out of v1 architecture:
+Deferred and explicitly scoped out of v1:
 - LinkedIn auto-fetch (ToS risk).
-- "Realistic chance" estimator until we have outcome data.
-- Naukri/Internshala scraping unless aggregator coverage is clearly insufficient.
+- "Realistic chance" estimator until beta gives outcome data to calibrate.
+- Naukri/Internshala/Cutshort scraping. Aggregators only.
+- Auto-apply on user's behalf. Never (abuse risk).
+- Voice / video practice. Post-GA.
+
+**On-demand vs eager:** every Slice 2 artifact (cover letter, brief, interview Qs, outreach) is generated by an explicit user click on the per-job dashboard, not auto-generated. Users only spend tokens on what they actually want.
 
 ---
 
@@ -121,8 +127,8 @@ When NOTES.md crosses 600 lines, propose splitting one well-isolated section int
 - **Frontend + API:** Next.js App Router on Vercel (Fluid Compute).
 - **DB + Auth + Storage:** Supabase (Postgres + RLS + Auth + Storage).
 - **LLM routing:** Vercel AI Gateway (`provider/model` strings).
-- **Primary LLM:** Anthropic Sonnet 4.6 (with prompt caching) — confirm in Phase 1.
-- **Secondary LLM (scoring):** TBD in Phase 1.
+- **Primary LLM:** Anthropic Sonnet 4.6 (assessment + resume tailoring + orchestrator). BYOK direct via `@ai-sdk/anthropic`.
+- **Secondary LLM:** OpenAI GPT-4.1 mini (everything else: scoring, parsing, cover letter, brief, interview Qs, outreach, practice). BYOK direct via `@ai-sdk/openai`.
 - **Resume engine:** LaTeX via Tectonic, edit-via-JSON pattern, compiled in Vercel Sandbox.
 - **Background jobs:** Vercel Queues (beta) + cron.
 - **Multi-agent orchestration:** Vercel Workflow DevKit (durable, pause/resume, retries).

@@ -14,8 +14,28 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 
 ## Last session
 
-**Date:** 2026-04-27
-**Phase:** Slice 1 build — **Step 1 complete: design system + landing + auth pages**. All earlier phases (0–4) already done.
+**Date:** 2026-04-29
+**Phase:** Slice 1 build — **Steps 1–5 shipped, Step 6 in flight (expanded scope).**
+
+**Live state:** assessment, onboarding, feed, match scoring all working end-to-end on https://findmejob-nu.vercel.app. BYOK direct providers (Anthropic + OpenAI) charging user accounts. Auto-deploy unblocked. Autonomous Vercel logs + Puppeteer snap workflow active.
+
+**Step 6 reshape (this session):**
+- Original 6a (LaTeX PDF) expanded to **6c → 6b → 6a** sequence:
+  - **6c (this turn):** applications log + save-from-feed + per-job dashboard shell at /applications/[id]
+  - **6b (this turn):** paste-a-job intake (URL fetch with mini extraction, OR JD text paste with mini parse)
+  - **6a (next focused turn):** LaTeX/Tectonic compile inside Vercel Sandbox + PDF storage in Supabase
+- Slice 2 reframed: per-job dashboard with **on-demand artifact buttons** (cover letter, brief, interview Qs, outreach, practice mode), not eager bundles. Saves tokens on artifacts users don't ask for.
+- Application tracker absorbed into Slice 2 shell, not a separate Slice 3 feature.
+
+**Schema additions (this turn):**
+- New tables: `applications`, `practice_sessions`.
+- New columns: `generations.application_id` (nullable fk), `jobs.created_by` (nullable fk).
+- New enum value: `job_source.user_pasted`.
+- Updated RLS: jobs SELECT becomes `created_by IS NULL OR created_by = auth.uid()`; new INSERT policy on jobs for user-pasted entries.
+
+**What's next:**
+- Step 6a (LaTeX/Tectonic/Vercel Sandbox PDF) as the next focused turn.
+- Then Slice 2 begins: per-job artifact buttons + practice mode.
 
 **Production state:**
 - App: https://findmejob-nu.vercel.app (HTTP 200, Next.js scaffold rendering)

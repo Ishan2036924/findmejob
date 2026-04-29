@@ -549,6 +549,100 @@ At 500 users (cost-discipline gate): projects to ~$400/month — still pre-paid-
 
 ---
 
+## Architecture extension (2026-04-29 — Slice 1 → Slice 2 reshape)
+
+### Why this changed
+
+Original Slice 2 plan: clicking a job auto-generates the entire bundle (cover letter + interview Qs + outreach + brief). User flagged: *"if someone applies, doesn't mean they interview today — wasted tokens."* Correct. Replace with **lazy per-button artifact generation** inside a per-job dashboard. Application tracker becomes the SHELL of Slice 2 instead of a separate Slice 3 feature.
+
+### New flow
+
+```
+Feed (/jobs)  →  [Save] / [Apply] button on a card  →  creates an Application
+                                                         │
+Paste-a-job   →  URL or JD text  →  LLM extract  ────────┤
+                                                         ▼
+                          /applications  (the user's work board)
+                                                         │
+                                                         ▼
+              /applications/[id]  (per-job dashboard — "the whole portal")
+              ┌────────────────────────────────────────────────────┐
+              │ Job header (title, company, score, JD)             │
+              │ Status pills (Saved · Applied · Interview · Offer) │
+              │ Notes textarea                                     │
+              │ Artifact cards — each ON DEMAND:                   │
+              │   📄 Tailored resume     [Generate]                 │
+              │   ✍️ Cover letter        [Generate]                 │
+              │   🏢 About this company  [Generate]                 │
+              │   🎯 Interview questions [Generate]                 │
+              │   💬 Outreach drafts     [Generate]                 │
+              │   🎙️ Practice answers    [Start session] (Slice 2) │
+              └────────────────────────────────────────────────────┘
+```
+
+Each artifact: own server action, own row in `generations` linked via `application_id`. State per card: not-generated → generating → generated (with timestamp + regenerate).
+
+### New tables (Slice 1 Step 6c migration + Slice 2 prep)
+
+```
+applications
+  id              uuid PK
+  profile_id      uuid fk profiles.id
+  job_id          uuid fk jobs.id
+  status          enum(saved, applied, interview, offer, rejected, withdrawn)
+  notes           text default ''
+  applied_at      timestamptz nullable
+  created_at, updated_at  timestamptz
+  unique(profile_id, job_id)
+
+practice_sessions          -- populated in Slice 2; declared now for stability
+  id              uuid PK
+  application_id  uuid fk applications.id
+  question        text
+  user_answer     text
+  feedback        jsonb     -- { score, strengths[], improvements[] }
+  created_at      timestamptz
+
+generations
+  + application_id  uuid fk applications.id NULLABLE   -- new column
+
+jobs
+  + created_by      uuid fk auth.users.id NULLABLE     -- new column
+                                                      -- non-null = user-pasted entry
+job_source enum
+  + 'user_pasted' value                                -- new enum value
+```
+
+RLS:
+- `applications`: own only (select/insert/update/delete via `auth.uid() = profile_id`).
+- `practice_sessions`: select/insert via `application_id IN (own applications)`.
+- `jobs` SELECT: rewritten to `created_by IS NULL OR created_by = auth.uid()` (public jobs + own pasted).
+- `jobs` INSERT (new): `created_by = auth.uid() AND source = 'user_pasted'` — users can only insert their own paste-a-job entries; system jobs still service-role only.
+
+### Paste-a-job intake
+
+Two entry modes:
+- **URL mode**: server fetches the URL, mini extracts `{ title, company, location, description }` from the HTML. User confirms before save.
+- **JD text mode**: user pastes raw text; mini parses into the same shape.
+
+Both create a `jobs` row with `source='user_pasted'`, `created_by=user.id`, then immediately create an `applications` row (status='saved') and run match scoring on it.
+
+### Daily cron ingestion (Slice 4 — formalized)
+
+Replaces on-demand `refreshFeed()` with a cron-driven background job:
+- `vercel.ts`: `crons: [{ path: '/api/cron/ingest-jobs', schedule: '30 0 * * *' }]` (00:30 UTC = 06:00 IST).
+- `/api/cron/ingest-jobs/route.ts`: verify `Authorization: Bearer ${CRON_SECRET}`, fetch from JSearch + Greenhouse + Lever + Ashby + AngelList for each role family, upsert into `jobs`.
+- Match scoring stays lazy — runs per user when they hit `/jobs`, scoring only the unscored jobs for that profile.
+- Keeps free-tier API budgets predictable (1 cron call/day vs. user-triggered hammering).
+
+### What stays the same
+
+- Sonnet for moat features (assessment, resume tailoring, orchestrator if added).
+- Mini for everything else (parsing, scoring, all Slice 2 artifacts).
+- 6-table data model is unchanged at its core; we add 2 tables (applications, practice_sessions) and 2 columns (generations.application_id, jobs.created_by).
+
+---
+
 ## Lessons learned
 
 *Append-only. Each entry: short rule + when/why discovered.*
