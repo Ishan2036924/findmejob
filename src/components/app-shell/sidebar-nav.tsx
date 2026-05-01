@@ -2,22 +2,36 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { LucideIcon } from 'lucide-react';
+import {
+  BarChart3,
+  Briefcase,
+  FolderOpen,
+  LayoutDashboard,
+  MessageSquare,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type SidebarNavItem = {
+type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  soon?: boolean;
 };
 
-export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
+const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/jobs', label: 'Jobs', icon: Briefcase },
+  { href: '/applications', label: 'Applications', icon: FolderOpen },
+  { href: '/chat', label: 'Chat', icon: MessageSquare },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+];
+
+export function SidebarNav() {
   const pathname = usePathname();
 
   return (
     <nav className="flex flex-col gap-0.5">
-      {items.map((item) => {
+      {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const isActive =
           pathname === item.href ||
@@ -36,11 +50,6 @@ export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
           >
             <Icon className="size-4" strokeWidth={1.5} />
             <span>{item.label}</span>
-            {item.soon && (
-              <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">
-                soon
-              </span>
-            )}
           </Link>
         );
       })}
