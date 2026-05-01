@@ -12,6 +12,8 @@ import {
   CAREER_AGENT_SYSTEM,
   CAREER_AGENT_SYSTEM_VERSION,
 } from '../prompts/system/career-agent.system';
+import { getRubricSummary } from '../prompts/rubrics';
+import type { RoleFamily } from '../schemas/profile';
 
 import { getProfileTool } from '../tools/get-profile';
 import { listApplicationsTool } from '../tools/list-applications';
@@ -101,6 +103,17 @@ export async function careerAgent({
 
   const { block: memoryBlock, ids: loadedMemoryIds } =
     await getMemoryBlockAndIds();
+
+  // Pull the user's target role family so we can ship a compact rubric
+  // summary as system context. Grounds advice in the right framework every
+  // turn without bloating the prompt with full gap-detection patterns.
+  const { data: profileRow } = await supabase
+    .from('profiles')
+    .select('target_role_family')
+    .eq('id', profileId)
+    .maybeSingle<{ target_role_family: RoleFamily | null }>();
+  const rubricSummary = getRubricSummary(profileRow?.target_role_family);
+
   const systemMessages: ModelMessage[] = [
     { role: 'system', content: CAREER_AGENT_SYSTEM },
   ];
@@ -114,6 +127,12 @@ export async function careerAgent({
     systemMessages.push({
       role: 'system',
       content: `## EARLIER_THREAD_SUMMARY\n${threadRow.rolling_summary}`,
+    });
+  }
+  if (rubricSummary) {
+    systemMessages.push({
+      role: 'system',
+      content: `## USER_ROLE_RUBRIC (compact)\nGround advice in the dimensions below when discussing fit, gaps, growth, or feedback.\n\n${rubricSummary}`,
     });
   }
 

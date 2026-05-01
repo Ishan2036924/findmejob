@@ -8,6 +8,15 @@ import {
   Megaphone,
   Settings2,
   CircleDashed,
+  Brain,
+  Database,
+  ShieldCheck,
+  TestTube2,
+  Users,
+  Calculator,
+  ShoppingCart,
+  Truck,
+  Briefcase,
   type LucideIcon,
 } from 'lucide-react';
 import type { RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
@@ -20,9 +29,10 @@ export type RoleFamilyOption = {
   available: boolean;
 };
 
-// Slice 1 ships rubrics for swe + data_ml only. The rest are listed for visual
-// completeness; selecting a non-available option is blocked at the form level.
+// 17 active role families + `other` (placeholder, blocked at form level since
+// "other" cannot have a rubric). Order mirrors the zod enum grouping.
 export const ROLE_FAMILIES: RoleFamilyOption[] = [
+  // Tech / engineering
   {
     value: 'swe',
     label: 'Software Engineer',
@@ -31,54 +41,121 @@ export const ROLE_FAMILIES: RoleFamilyOption[] = [
     available: true,
   },
   {
+    value: 'ai_ml_engineer',
+    label: 'AI / ML Engineer',
+    description: 'ML, deep learning, RAG, LLM agents, MLOps',
+    icon: Brain,
+    available: true,
+  },
+  {
     value: 'data_ml',
-    label: 'Data / ML',
-    description: 'Data eng, ML eng, analytics, science',
+    label: 'Data / Analytics',
+    description: 'Data eng, analytics, BI, science',
     icon: BarChart3,
     available: true,
   },
   {
+    value: 'devops',
+    label: 'DevOps / SRE / Cloud',
+    description: 'Infra, platform, reliability, cloud architecture',
+    icon: Server,
+    available: true,
+  },
+  {
+    value: 'dba',
+    label: 'Database Administrator',
+    description: 'RDBMS, NoSQL, performance, replication',
+    icon: Database,
+    available: true,
+  },
+  {
+    value: 'security_engineer',
+    label: 'Security Engineer',
+    description: 'InfoSec, AppSec, threat modeling, compliance',
+    icon: ShieldCheck,
+    available: true,
+  },
+  {
+    value: 'qa_engineer',
+    label: 'QA / SDET',
+    description: 'Manual, automation, performance, security testing',
+    icon: TestTube2,
+    available: true,
+  },
+  // Product & Design
+  {
     value: 'product',
-    label: 'Product',
+    label: 'Product Manager',
     description: 'PM, technical PM, growth PM',
     icon: Compass,
-    available: false,
+    available: true,
   },
   {
     value: 'design',
     label: 'Design',
-    description: 'Product, UX, brand, motion',
+    description: 'Product, UX, brand, motion, research',
     icon: Palette,
-    available: false,
+    available: true,
   },
-  {
-    value: 'devops',
-    label: 'DevOps / SRE',
-    description: 'Infra, platform, reliability',
-    icon: Server,
-    available: false,
-  },
+  // Go-to-market
   {
     value: 'sales',
     label: 'Sales',
-    description: 'AE, SDR, account management',
+    description: 'AE, SDR, account management, sales engineering',
     icon: TrendingUp,
-    available: false,
+    available: true,
   },
   {
     value: 'marketing',
     label: 'Marketing',
-    description: 'Growth, brand, content, perf',
+    description: 'Growth, brand, content, performance',
     icon: Megaphone,
-    available: false,
+    available: true,
   },
+  // Operations / business / back-office
   {
     value: 'ops',
     label: 'Operations',
-    description: 'BizOps, ops analyst, GTM ops',
+    description: 'BizOps, ops analyst, GTM ops, project mgmt',
     icon: Settings2,
-    available: false,
+    available: true,
   },
+  {
+    value: 'hr',
+    label: 'HR / People',
+    description: 'Recruiting, HRBP, L&D, People Ops, comp',
+    icon: Users,
+    available: true,
+  },
+  {
+    value: 'finance',
+    label: 'Finance / Accounting',
+    description: 'FP&A, controller, audit, treasury, tax',
+    icon: Calculator,
+    available: true,
+  },
+  {
+    value: 'procurement',
+    label: 'Procurement / Sourcing',
+    description: 'Strategic sourcing, vendor mgmt, category',
+    icon: ShoppingCart,
+    available: true,
+  },
+  {
+    value: 'supply_chain',
+    label: 'Supply Chain',
+    description: 'Logistics, planning, inventory, S&OP',
+    icon: Truck,
+    available: true,
+  },
+  {
+    value: 'consulting',
+    label: 'Consulting',
+    description: 'Strategy, ops, tech, transformation consulting',
+    icon: Briefcase,
+    available: true,
+  },
+  // Fallback
   {
     value: 'other',
     label: 'Other',

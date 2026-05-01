@@ -41,13 +41,13 @@ export type AssessmentResult = {
 export async function runAssessment(input: AssessmentInput): Promise<AssessmentResult> {
   const parsed = assessmentInputSchema.parse(input);
   const family = parsed.profile.target_role_family;
-  const rubric = RUBRICS[family];
 
-  if (!rubric) {
+  if (family === 'other') {
     throw new Error(
-      `No assessment rubric for role_family='${family}' yet. Slice 1 supports: ${Object.keys(RUBRICS).join(', ')}.`,
+      `No assessment rubric for role_family='other'. Pick a concrete role family. Available: ${Object.keys(RUBRICS).join(', ')}.`,
     );
   }
+  const rubric = RUBRICS[family];
 
   const result = await generateObject({
     model: MODELS.assessment,

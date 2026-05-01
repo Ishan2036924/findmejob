@@ -1,15 +1,31 @@
 import { z } from 'zod';
 
 // Mirrors the Postgres enums in supabase/migrations/20260427180700_slice1_schema.sql
+// Expanded in 20260501140000_expand_role_families.sql to cover broader
+// corporate scope (tech + product + ops + people + back-office).
 export const roleFamily = z.enum([
+  // Tech / engineering
   'swe',
+  'ai_ml_engineer',
   'data_ml',
+  'devops',
+  'dba',
+  'security_engineer',
+  'qa_engineer',
+  // Product & Design
   'product',
   'design',
-  'devops',
+  // Go-to-market
   'sales',
   'marketing',
+  // Operations / business / back-office
   'ops',
+  'hr',
+  'finance',
+  'procurement',
+  'supply_chain',
+  'consulting',
+  // Fallback
   'other',
 ]);
 export type RoleFamily = z.infer<typeof roleFamily>;
