@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { runPracticeFeedback } from '@/lib/ai/agents/practice-agent';
+import { checkPracticeRateLimit } from '@/lib/guardrails/rate-limit';
 import type { ResumeJson } from '@/lib/ai/schemas/profile';
 import type { PracticeFeedback, PracticeQuestionType } from '@/lib/ai/schemas/practice';
 
@@ -16,7 +17,7 @@ export type SubmitPracticeAnswerInput = {
 
 export type SubmitPracticeAnswerResult =
   | { ok: true; sessionId: string; feedback: PracticeFeedback }
-  | { ok: false; error: string };
+  | { ok: false; error: string; message?: string };
 
 export async function submitPracticeAnswer(
   input: SubmitPracticeAnswerInput,
@@ -31,6 +32,11 @@ export async function submitPracticeAnswer(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/sign-in');
+
+  const rate = await checkPracticeRateLimit(user.id);
+  if (!rate.ok) {
+    return { ok: false, error: 'daily_limit_reached', message: rate.message };
+  }
 
   const { data: application } = await supabase
     .from('applications')

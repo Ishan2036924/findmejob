@@ -40,7 +40,7 @@ export function ResumeCard({ applicationId, initialResumeId }: Props) {
     startTransition(async () => {
       const result = await generateTailoredResume(applicationId);
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(result.message ?? result.error);
         return;
       }
       setResumeId(result.resumeId);

@@ -5,11 +5,12 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { runTailor } from '@/lib/ai/agents/tailor-agent';
 import { applyTailorOutput } from './edit-ops';
+import { checkArtifactRateLimit } from '@/lib/guardrails/rate-limit';
 import type { ResumeJson } from '@/lib/ai/schemas/profile';
 
 export type GenerateTailoredResumeResult =
   | { ok: true; resumeId: string; appliedOps: number; skippedOps: number }
-  | { ok: false; error: string };
+  | { ok: false; error: string; message?: string };
 
 /**
  * Generate a tailored resume for an application.
@@ -30,6 +31,11 @@ export async function generateTailoredResume(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/sign-in');
+
+  const rate = await checkArtifactRateLimit(user.id);
+  if (!rate.ok) {
+    return { ok: false, error: 'daily_limit_reached', message: rate.message };
+  }
 
   // 1. Application + linked job
   const { data: application, error: appErr } = await supabase

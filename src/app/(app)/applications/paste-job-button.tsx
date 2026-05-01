@@ -38,7 +38,7 @@ export function PasteJobButton() {
     startTransition(async () => {
       const result = tab === 'url' ? await pasteJobFromUrl(url) : await pasteJobFromText(text);
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(result.message ?? result.error);
         return;
       }
       toast.success('Job added to your applications');

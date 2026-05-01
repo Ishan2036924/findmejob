@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { ingestJobs } from '@/lib/jobs/ingest';
+import { scoreAllUsers } from '@/lib/jobs/score-all-users';
 
 // Vercel cron sends Authorization: Bearer ${CRON_SECRET} when CRON_SECRET is
 // set on the project. We reject otherwise — both for direct browser hits and
@@ -30,14 +31,33 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await ingestJobs();
-    console.log('[cron/ingest-jobs] success', {
+    console.log('[cron/ingest-jobs] ingest done', {
       totalFetched: result.totalFetched,
       totalUpserted: result.totalUpserted,
       bySource: result.bySource,
       errorCount: result.errors.length,
       durationMs: result.durationMs,
     });
-    return NextResponse.json({ ok: true, ...result });
+
+    // Post-ingest: score the newly ingested jobs for every onboarded user.
+    // Failures here must NOT fail the cron — ingest is the source of truth.
+    let scoring: Awaited<ReturnType<typeof scoreAllUsers>> | { error: string } = {
+      usersScored: 0,
+      jobsScored: 0,
+      errors: 0,
+      capHit: false,
+    };
+    try {
+      scoring = await scoreAllUsers();
+      console.log('[cron/ingest-jobs] scoring done', scoring);
+    } catch (err) {
+      console.error('[cron/ingest-jobs] scoreAllUsers threw', {
+        error: err instanceof Error ? { name: err.name, message: err.message } : err,
+      });
+      scoring = { error: err instanceof Error ? err.message : 'unknown' };
+    }
+
+    return NextResponse.json({ ok: true, ingest: result, scoring });
   } catch (err) {
     console.error('[cron/ingest-jobs] threw', {
       error: err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : err,

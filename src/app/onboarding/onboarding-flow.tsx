@@ -14,10 +14,11 @@ import { ROLE_FAMILIES, SENIORITY_OPTIONS } from './options';
 import { saveOnboarding } from '@/lib/profile/actions';
 import type { RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
 import { ResumeUpload } from '@/components/profile/resume-upload';
+import { LinkedinStep } from './linkedin-step';
 
-type Step = 'goal' | 'resume' | 'context';
+type Step = 'goal' | 'resume' | 'linkedin' | 'context';
 
-const STEPS: Step[] = ['goal', 'resume', 'context'];
+const STEPS: Step[] = ['goal', 'resume', 'linkedin', 'context'];
 
 type FormState = {
   target_role_family: RoleFamily | null;
@@ -47,7 +48,9 @@ export function OnboardingFlow({
       ? !!form.target_role_family && !!form.target_seniority && form.target_location.trim().length > 0
       : step === 'resume'
         ? form.raw_resume_text.trim().length >= 100
-        : true;
+        : step === 'linkedin'
+          ? true
+          : true;
 
   function next() {
     const i = STEPS.indexOf(step);
@@ -223,6 +226,28 @@ export function OnboardingFlow({
               initialText={form.raw_resume_text}
               onTextChange={(text) =>
                 setForm((f) => ({ ...f, raw_resume_text: text }))
+              }
+            />
+          </motion.div>
+        )}
+
+        {step === 'linkedin' && (
+          <motion.div
+            key="linkedin"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={transition}
+          >
+            <LinkedinStep
+              onAdvance={next}
+              onMerged={(rawText) =>
+                setForm((f) => ({
+                  ...f,
+                  linkedin_paste: f.linkedin_paste
+                    ? `${f.linkedin_paste}\n\n---\n\n${rawText}`
+                    : rawText,
+                }))
               }
             />
           </motion.div>

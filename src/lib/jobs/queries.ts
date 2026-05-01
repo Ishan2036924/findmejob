@@ -25,6 +25,7 @@ export type FeedResult = {
   unscored: number;
   hasJobs: boolean;
   profileReady: boolean;
+  lastSeenAt: string | null;
 };
 
 export async function getFeed(): Promise<FeedResult> {
@@ -32,7 +33,8 @@ export async function getFeed(): Promise<FeedResult> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { jobs: [], unscored: 0, hasJobs: false, profileReady: false };
+  if (!user)
+    return { jobs: [], unscored: 0, hasJobs: false, profileReady: false, lastSeenAt: null };
 
   // Profile readiness check — match scoring needs target_role_family + resume_json
   const { data: profile } = await supabase
@@ -50,8 +52,18 @@ export async function getFeed(): Promise<FeedResult> {
     .order('posted_at', { ascending: false, nullsFirst: false })
     .limit(50);
 
+  // Most-recent ingest timestamp across the whole table — surfaced in the
+  // feed header as a "last refreshed" hint.
+  const { data: latest } = await supabase
+    .from('jobs')
+    .select('last_seen_at')
+    .order('last_seen_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const lastSeenAt = latest?.last_seen_at ?? null;
+
   if (!jobsRaw || jobsRaw.length === 0) {
-    return { jobs: [], unscored: 0, hasJobs: false, profileReady };
+    return { jobs: [], unscored: 0, hasJobs: false, profileReady, lastSeenAt };
   }
 
   const { data: scores } = await supabase
@@ -103,6 +115,7 @@ export async function getFeed(): Promise<FeedResult> {
     unscored: jobs.filter((j) => !j.match).length,
     hasJobs: true,
     profileReady,
+    lastSeenAt,
   };
 }
 

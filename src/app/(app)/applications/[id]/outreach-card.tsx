@@ -35,7 +35,7 @@ export function OutreachCard({ applicationId, initialOutput }: Props) {
     startTransition(async () => {
       const result = await generateOutreach(applicationId);
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(result.message ?? result.error);
         return;
       }
       router.refresh();

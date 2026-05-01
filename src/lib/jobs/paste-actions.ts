@@ -7,11 +7,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { runJobExtractor } from '@/lib/ai/agents/job-extractor-agent';
 import { runMatchScore } from '@/lib/ai/agents/match-score-agent';
 import { enqueueCompanyClassification } from '@/lib/applications/classify';
+import { checkPasteJdRateLimit } from '@/lib/guardrails/rate-limit';
 import type { Profile, RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
 
 export type PasteJobResult =
   | { ok: true; applicationId: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; message?: string };
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_HTML_CHARS = 60_000;
@@ -153,6 +154,11 @@ export async function pasteJobFromUrl(url: string): Promise<PasteJobResult> {
   } = await supabase.auth.getUser();
   if (!user) redirect('/sign-in');
 
+  const rate = await checkPasteJdRateLimit(user.id);
+  if (!rate.ok) {
+    return { ok: false, error: 'daily_limit_reached', message: rate.message };
+  }
+
   let pageText: string;
   try {
     pageText = await fetchAndStripHtml(trimmed);
@@ -206,6 +212,11 @@ export async function pasteJobFromText(jdText: string): Promise<PasteJobResult> 
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/sign-in');
+
+  const rate = await checkPasteJdRateLimit(user.id);
+  if (!rate.ok) {
+    return { ok: false, error: 'daily_limit_reached', message: rate.message };
+  }
 
   let extracted;
   try {

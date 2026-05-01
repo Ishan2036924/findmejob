@@ -20,7 +20,7 @@ export default async function OnboardingPage() {
       />
       <header className="flex h-16 items-center justify-between px-6 sm:px-10">
         <span className="font-mono text-sm font-medium tracking-tight">findmejob</span>
-        <span className="text-xs text-muted-foreground">Step 1 of 3</span>
+        <span className="text-xs text-muted-foreground">Step 1 of 4</span>
       </header>
       <main className="flex flex-1 items-start justify-center px-6 pb-20 pt-4 sm:pt-12">
         <div className="w-full max-w-2xl">

@@ -66,7 +66,7 @@ export function PracticeSession({ applicationId, questions, pastSessions }: Prop
         userAnswer: answer,
       });
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(result.message ?? result.error);
         return;
       }
       setFeedback(result.feedback);

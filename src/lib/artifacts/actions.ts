@@ -7,13 +7,14 @@ import { runCoverLetter } from '@/lib/ai/agents/cover-letter-agent';
 import { runCompanyBrief } from '@/lib/ai/agents/company-brief-agent';
 import { runInterviewQuestions } from '@/lib/ai/agents/interview-questions-agent';
 import { runOutreach } from '@/lib/ai/agents/outreach-agent';
+import { checkArtifactRateLimit } from '@/lib/guardrails/rate-limit';
 import type { ResumeJson } from '@/lib/ai/schemas/profile';
 
 type ArtifactKind = 'cover_letter' | 'company_brief' | 'interview_questions' | 'outreach_drafts';
 
 export type GenerateArtifactResult =
   | { ok: true; generationId: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; message?: string };
 
 async function loadContext(applicationId: string) {
   const supabase = await createClient();
@@ -21,6 +22,11 @@ async function loadContext(applicationId: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/sign-in');
+
+  const rate = await checkArtifactRateLimit(user.id);
+  if (!rate.ok) {
+    return { ok: false as const, error: 'daily_limit_reached', message: rate.message };
+  }
 
   const { data: application } = await supabase
     .from('applications')

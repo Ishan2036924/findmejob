@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { roleFamily, seniority, resumeJsonSchema, type ResumeJson } from '@/lib/ai/schemas/profile';
 import { runResumeParser } from '@/lib/ai/agents/resume-parser-agent';
+import { mergeResumeWithLinkedin } from '@/lib/profile/merge-linkedin';
 
 const onboardingInputSchema = z.object({
   target_role_family: roleFamily,
@@ -201,4 +202,170 @@ export async function commitResume(input: {
   revalidatePath('/onboarding');
 
   return { ok: true, resumeId: resumeRow?.id ?? null };
+}
+
+// ---------------------------------------------------------------------------
+// LinkedIn merge (PDF export or pasted profile text)
+// ---------------------------------------------------------------------------
+
+export type LinkedinUploadResult =
+  | { ok: true; resumeJson: ResumeJson; rawText: string }
+  | { ok: false; error: string };
+
+export type LinkedinCommitResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Accepts a LinkedIn profile PDF export, extracts text, parses to ResumeJson,
+ * and returns the parsed result WITHOUT committing. Mirrors uploadResumePdf.
+ */
+export async function uploadLinkedinPdf(
+  formData: FormData,
+): Promise<LinkedinUploadResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Not signed in.' };
+
+  const file = formData.get('file');
+  if (!(file instanceof File)) {
+    return { ok: false, error: 'No file uploaded.' };
+  }
+  if (file.type !== 'application/pdf') {
+    return { ok: false, error: 'Only PDF files are accepted.' };
+  }
+  if (file.size > MAX_PDF_BYTES) {
+    return { ok: false, error: 'PDF must be 5MB or smaller.' };
+  }
+
+  let rawText: string;
+  try {
+    const { extractText, getDocumentProxy } = await import('unpdf');
+    const buffer = await file.arrayBuffer();
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    const { text } = await extractText(pdf, { mergePages: true });
+    rawText = (Array.isArray(text) ? text.join('\n') : text).trim();
+  } catch (err) {
+    console.error('[uploadLinkedinPdf] extract failed', err);
+    return {
+      ok: false,
+      error: 'Failed to read the PDF. Try a different file or paste the text.',
+    };
+  }
+
+  if (rawText.length < MIN_TEXT_CHARS) {
+    return {
+      ok: false,
+      error:
+        'Could not extract text. The PDF may be a scanned image. Paste the text instead.',
+    };
+  }
+
+  try {
+    const parsed = await runResumeParser({ raw_text: rawText });
+    return { ok: true, resumeJson: parsed.output, rawText };
+  } catch (err) {
+    console.error('[uploadLinkedinPdf] parser failed', err);
+    return { ok: false, error: 'LinkedIn parser failed. Try again.' };
+  }
+}
+
+const linkedinCommitSchema = z.object({
+  resumeJson: resumeJsonSchema,
+  rawText: z.string().min(MIN_TEXT_CHARS),
+});
+
+/**
+ * Persist a parsed LinkedIn profile by merging it with the user's existing
+ * resume_json (or saving directly if none exists), and append the raw text to
+ * profiles.linkedin_paste.
+ */
+export async function commitLinkedinMerge(parsed: {
+  resumeJson: ResumeJson;
+  rawText: string;
+}): Promise<LinkedinCommitResult> {
+  const validated = linkedinCommitSchema.safeParse(parsed);
+  if (!validated.success) {
+    return {
+      ok: false,
+      error: validated.error.issues[0]?.message ?? 'Invalid LinkedIn payload.',
+    };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Not signed in.' };
+
+  const { data: profileRow, error: loadErr } = await supabase
+    .from('profiles')
+    .select('resume_json, linkedin_paste')
+    .eq('id', user.id)
+    .single();
+
+  if (loadErr) return { ok: false, error: loadErr.message };
+
+  const existing = profileRow?.resume_json as ResumeJson | null;
+  const merged: ResumeJson = existing
+    ? mergeResumeWithLinkedin(existing, validated.data.resumeJson)
+    : validated.data.resumeJson;
+
+  const linkedinPaste = appendLinkedinPaste(
+    profileRow?.linkedin_paste ?? null,
+    validated.data.rawText,
+  );
+
+  const { error: updateErr } = await supabase
+    .from('profiles')
+    .update({
+      resume_json: merged,
+      linkedin_paste: linkedinPaste,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', user.id);
+
+  if (updateErr) return { ok: false, error: updateErr.message };
+
+  revalidatePath('/dashboard');
+  revalidatePath('/onboarding');
+  return { ok: true };
+}
+
+/**
+ * Parse pasted LinkedIn profile text into ResumeJson, merge with existing
+ * resume_json, and persist alongside the raw text.
+ */
+export async function commitLinkedinText(
+  text: string,
+): Promise<LinkedinCommitResult> {
+  const trimmed = text.trim();
+  if (trimmed.length < MIN_TEXT_CHARS) {
+    return { ok: false, error: `Paste at least ${MIN_TEXT_CHARS} characters.` };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Not signed in.' };
+
+  let parsedResume: ResumeJson;
+  try {
+    const parsed = await runResumeParser({ raw_text: trimmed });
+    parsedResume = parsed.output;
+  } catch (err) {
+    console.error('[commitLinkedinText] parser failed', err);
+    return { ok: false, error: 'LinkedIn parser failed. Try again.' };
+  }
+
+  return commitLinkedinMerge({ resumeJson: parsedResume, rawText: trimmed });
+}
+
+function appendLinkedinPaste(existing: string | null, addition: string): string {
+  const trimmedExisting = (existing ?? '').trim();
+  const trimmedAddition = addition.trim();
+  if (!trimmedExisting) return trimmedAddition;
+  if (trimmedExisting.includes(trimmedAddition)) return trimmedExisting;
+  return `${trimmedExisting}\n\n---\n\n${trimmedAddition}`;
 }

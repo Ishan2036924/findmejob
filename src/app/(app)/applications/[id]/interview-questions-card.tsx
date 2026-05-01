@@ -25,7 +25,7 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
     startTransition(async () => {
       const result = await generateInterviewQuestions(applicationId);
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(result.message ?? result.error);
         return;
       }
       router.refresh();

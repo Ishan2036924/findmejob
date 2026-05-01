@@ -24,7 +24,7 @@ export function CompanyBriefCard({ applicationId, initialOutput }: Props) {
     startTransition(async () => {
       const result = await generateCompanyBrief(applicationId);
       if (!result.ok) {
-        toast.error(result.error);
+        toast.error(result.message ?? result.error);
         return;
       }
       router.refresh();

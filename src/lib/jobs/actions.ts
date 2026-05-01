@@ -25,7 +25,7 @@ export type RefreshFeedResult =
  * Decoupled from the daily cron at /api/cron/ingest-jobs which is the
  * primary ingest path system-wide.
  */
-export async function refreshFeed(): Promise<RefreshFeedResult> {
+export async function refreshFeedForCurrentUser(): Promise<RefreshFeedResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -156,4 +156,13 @@ export async function refreshFeed(): Promise<RefreshFeedResult> {
 
   revalidatePath('/jobs');
   return { ok: true, ingested, scored };
+}
+
+/**
+ * Back-compat alias. The agent tool layer (Phase 3) and any stale callers may
+ * still reference `refreshFeed`. Forwarder so we don't break them while we
+ * rename the canonical export.
+ */
+export async function refreshFeed(): Promise<RefreshFeedResult> {
+  return refreshFeedForCurrentUser();
 }
