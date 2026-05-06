@@ -2,6 +2,7 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runMatchScore } from '@/lib/ai/agents/match-score-agent';
 import type { Profile, RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
+import { userRegion } from './region';
 
 export type ScoreAllResult = {
   usersScored: number;
@@ -72,11 +73,18 @@ export async function scoreAllUsers(): Promise<ScoreAllResult> {
       .eq('profile_id', profile.id);
     const scoredIds = new Set(existingScores?.map((s) => s.job_id) ?? []);
 
-    const { data: jobs } = await admin
+    // Same region gate as getFeed — never spend mini calls scoring jobs the
+    // user can't see anyway.
+    const region = userRegion(profile.target_location);
+    let jobsQuery = admin
       .from('jobs')
       .select('id, title, company, description')
       .order('posted_at', { ascending: false, nullsFirst: false })
       .limit(PER_USER_JOB_CAP * 2); // overfetch then filter; cheaper than left-join
+    if (region !== 'other') {
+      jobsQuery = jobsQuery.in('region', [region, 'remote']);
+    }
+    const { data: jobs } = await jobsQuery;
 
     const unscored = (jobs ?? [])
       .filter((j) => !scoredIds.has(j.id))

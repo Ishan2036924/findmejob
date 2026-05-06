@@ -12,6 +12,7 @@ import {
   ASSESSMENT_SYSTEM_VERSION,
 } from '../prompts/system/assessment.system';
 import { RUBRICS } from '../prompts/rubrics';
+import type { ResumeJson } from '../schemas/profile';
 
 export type AssessmentResult = {
   output: AssessmentOutput;
@@ -25,6 +26,27 @@ export type AssessmentResult = {
     cacheWriteTokens: number;
   };
 };
+
+/**
+ * Cap a resume body to keep the assessment input under ~30k chars. Senior AI/ML
+ * resumes (User B in synth) blow past the 60s budget when long bullet text
+ * hammers Sonnet. Truncate experience + project bullets to 200 chars each.
+ */
+function capResumeBody(resume: ResumeJson): ResumeJson {
+  const serialized = JSON.stringify(resume);
+  if (serialized.length <= 30000) return resume;
+  return {
+    ...resume,
+    experience: resume.experience.map((e) => ({
+      ...e,
+      bullets: e.bullets.map((b) => b.slice(0, 200)),
+    })),
+    projects: resume.projects.map((p) => ({
+      ...p,
+      bullets: p.bullets.map((b) => b.slice(0, 200)),
+    })),
+  };
+}
 
 /**
  * Run a candid, rubric-grounded profile assessment using Sonnet 4.6.
@@ -49,6 +71,9 @@ export async function runAssessment(input: AssessmentInput): Promise<AssessmentR
   }
   const rubric = RUBRICS[family];
 
+  const cappedResume = capResumeBody(parsed.profile.resume_json);
+  const cappedProfile = { ...parsed.profile, resume_json: cappedResume };
+
   const result = await generateObject({
     model: MODELS.assessment,
     schema: assessmentOutputSchema,
@@ -58,7 +83,7 @@ export async function runAssessment(input: AssessmentInput): Promise<AssessmentR
       cached(
         {
           role: 'user',
-          content: `## CANDIDATE PROFILE\n\n\`\`\`json\n${JSON.stringify(parsed.profile, null, 2)}\n\`\`\``,
+          content: `## CANDIDATE PROFILE\n\n\`\`\`json\n${JSON.stringify(cappedProfile, null, 2)}\n\`\`\``,
         },
         '5m',
       ),
@@ -71,6 +96,18 @@ export async function runAssessment(input: AssessmentInput): Promise<AssessmentR
   });
 
   const { cacheReadTokens, cacheWriteTokens } = extractCacheStats(result.providerMetadata);
+  const totalIn = result.usage.inputTokens ?? 0;
+  const ratio = totalIn > 0 ? cacheReadTokens / totalIn : 0;
+  console.info(
+    '[assessment] cache_read=' +
+      cacheReadTokens +
+      ' cache_creation=' +
+      cacheWriteTokens +
+      ' total=' +
+      totalIn +
+      ' ratio=' +
+      ratio.toFixed(2),
+  );
 
   return {
     output: result.object,
@@ -78,7 +115,7 @@ export async function runAssessment(input: AssessmentInput): Promise<AssessmentR
     rubric_version: rubric.version,
     system_version: ASSESSMENT_SYSTEM_VERSION,
     usage: {
-      inputTokens: result.usage.inputTokens ?? 0,
+      inputTokens: totalIn,
       outputTokens: result.usage.outputTokens ?? 0,
       cacheReadTokens,
       cacheWriteTokens,

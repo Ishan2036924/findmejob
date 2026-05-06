@@ -1,6 +1,7 @@
 import 'server-only';
 import type { RawJob } from '../mock-jobs';
 import { stripHtml } from '../strip-html';
+import { inferRegion, type JobRegion } from '../region';
 
 type AshbyJob = {
   id: string;
@@ -23,6 +24,7 @@ const FETCH_TIMEOUT_MS = 12_000;
 export async function fetchAshbyJobs(
   slug: string,
   companyName: string,
+  hqRegion?: JobRegion,
 ): Promise<RawJob[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -40,16 +42,20 @@ export async function fetchAshbyJobs(
       return [];
     }
     const json = (await res.json()) as { jobs?: AshbyJob[] };
-    return (json.jobs ?? []).map((j) => ({
-      source: 'ashby' as const,
-      source_id: j.id,
-      source_url: j.jobUrl,
-      title: j.title,
-      company: companyName,
-      location: j.locationName ?? 'Unknown',
-      description: j.descriptionPlain ?? (j.descriptionHtml ? stripHtml(j.descriptionHtml) : ''),
-      posted_at: j.publishedAt ?? j.updatedAt ?? new Date().toISOString(),
-    }));
+    return (json.jobs ?? []).map((j) => {
+      const location = j.locationName ?? 'Unknown';
+      return {
+        source: 'ashby' as const,
+        source_id: j.id,
+        source_url: j.jobUrl,
+        title: j.title,
+        company: companyName,
+        location,
+        description: j.descriptionPlain ?? (j.descriptionHtml ? stripHtml(j.descriptionHtml) : ''),
+        posted_at: j.publishedAt ?? j.updatedAt ?? new Date().toISOString(),
+        region: inferRegion(location, hqRegion),
+      };
+    });
   } catch (err) {
     console.error('[ashby] threw', { slug, err: err instanceof Error ? err.message : err });
     return [];

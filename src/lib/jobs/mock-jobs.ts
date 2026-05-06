@@ -2,6 +2,8 @@
 // local dev. 12 listings — 6 Data/ML, 6 SWE — India-focused, mid-range
 // seniority. Realistic enough to exercise the match-scoring agent.
 
+import type { JobRegion } from './region';
+
 export type RawJob = {
   source: 'jsearch' | 'greenhouse' | 'lever' | 'ashby';
   source_id: string;
@@ -11,6 +13,7 @@ export type RawJob = {
   location: string;
   description: string;
   posted_at: string; // ISO
+  region: JobRegion;
 };
 
 const now = () => new Date().toISOString();
@@ -25,6 +28,7 @@ export const MOCK_JOBS: RawJob[] = [
     company: 'Razorpay',
     location: 'Bengaluru, India',
     posted_at: daysAgo(2),
+    region: 'india',
     description: `We're hiring an ML Engineer for our risk and fraud team. You'll own production ML models that score every transaction in <50ms.
 
 Responsibilities:
@@ -50,6 +54,7 @@ We don't care about your degree. Show us shipped models.`,
     company: 'Sarvam AI',
     location: 'Bengaluru, India',
     posted_at: daysAgo(4),
+    region: 'india',
     description: `Senior NLP Engineer to work on Indic-language LLMs and RAG systems for enterprise clients.
 
 You'll:
@@ -74,6 +79,7 @@ Open-source contributions or papers a strong plus.`,
     company: 'Swiggy',
     location: 'Bengaluru, India',
     posted_at: daysAgo(1),
+    region: 'india',
     description: `Data Scientist on the supply team. Optimize courier dispatch and pricing.
 
 Day to day:
@@ -99,6 +105,7 @@ Nice to have: Spark / dbt experience, time-series modeling.`,
     company: 'Cred',
     location: 'Bengaluru, India',
     posted_at: daysAgo(7),
+    region: 'india',
     description: `MLOps engineer to build the platform our ML team uses to ship models.
 
 You'll own:
@@ -124,6 +131,7 @@ We're a small team. You'll have a real seat at the architecture table.`,
     company: 'Flipkart',
     location: 'Bengaluru, India',
     posted_at: daysAgo(3),
+    region: 'india',
     description: `Applied Scientist on the home-page recommendation team. Drive metrics that move the needle for 400M+ users.
 
 Scope:
@@ -148,6 +156,7 @@ KaggleMaster, paper authorships, or open-source contributions in RecSys are stro
     company: 'Postman',
     location: 'Remote, India',
     posted_at: daysAgo(5),
+    region: 'remote',
     description: `AI Engineer to build LLM features into Postman — agents that write API tests, generate docs, debug failed runs.
 
 You'll:
@@ -172,6 +181,7 @@ We're remote-first across India. Strong async writing required.`,
     company: 'Razorpay',
     location: 'Bengaluru, India',
     posted_at: daysAgo(2),
+    region: 'india',
     description: `Senior backend engineer on the payments platform team. We process 1B+ transactions a year.
 
 You'll work on:
@@ -196,6 +206,7 @@ We move fast and we ship.`,
     company: 'Zerodha',
     location: 'Bengaluru, India',
     posted_at: daysAgo(6),
+    region: 'india',
     description: `Full-stack engineer for our trading platform. You'll work on Kite — used by millions of retail traders.
 
 Stack: Go backend, React frontend, PostgreSQL, Redis. Real-time market data over WebSockets.
@@ -222,6 +233,7 @@ We're small (~50 engineers), profitable, and we don't do meetings for fun.`,
     company: 'Postman',
     location: 'Bengaluru, India',
     posted_at: daysAgo(3),
+    region: 'india',
     description: `Frontend engineer on our design systems team. Build the components every product team uses.
 
 What we work on:
@@ -247,6 +259,7 @@ Bonus: open source design-system contributions, Radix or Base UI experience.`,
     company: 'Zomato',
     location: 'Gurugram, India',
     posted_at: daysAgo(1),
+    region: 'india',
     description: `Backend engineer on the consumer ordering team. Build the systems that power 100M+ users' food orders.
 
 What you'll do:
@@ -272,6 +285,7 @@ DSA fundamentals matter. Be ready to discuss your approach to a system design pr
     company: 'Atlassian',
     location: 'Bengaluru, India',
     posted_at: daysAgo(8),
+    region: 'india',
     description: `Staff engineer on the platform team. Set technical direction for our internal developer platform.
 
 Scope:
@@ -297,6 +311,7 @@ This is a high-bar staff role. We expect ambiguity-handling and strong written c
     company: 'CRED',
     location: 'Bengaluru, India',
     posted_at: now(),
+    region: 'india',
     description: `Junior backend engineer. We hire smart engineers early in their careers and grow them fast.
 
 You'll learn:

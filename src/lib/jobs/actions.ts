@@ -7,13 +7,15 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { ingestJobs } from './ingest';
 import { runMatchScore } from '@/lib/ai/agents/match-score-agent';
 import type { Profile, RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
+import { checkRefreshRateLimit } from '@/lib/guardrails/rate-limit';
+import { userRegion } from './region';
 
 const SCORING_CONCURRENCY = 5;
 const FRESH_INGEST_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h
 
 export type RefreshFeedResult =
   | { ok: true; ingested: number; scored: number }
-  | { ok: false; error: string };
+  | { ok: false; error: string; reason?: string };
 
 /**
  * One-click feed refresh from the user's perspective:
@@ -40,6 +42,13 @@ export async function refreshFeedForCurrentUser(): Promise<RefreshFeedResult> {
 
   if (!profile?.target_role_family || !profile?.target_seniority || !profile?.resume_json) {
     return { ok: false, error: 'Complete onboarding first.' };
+  }
+
+  // Daily refresh cap (default 1/day). Cron handles the nightly pull at 06:00
+  // IST; this button is for users who want one extra manual pull.
+  const rateLimit = await checkRefreshRateLimit(user.id);
+  if (!rateLimit.ok) {
+    return { ok: false, error: rateLimit.message, reason: rateLimit.reason };
   }
 
   const admin = createAdminClient();
@@ -73,12 +82,17 @@ export async function refreshFeedForCurrentUser(): Promise<RefreshFeedResult> {
     }
   }
 
-  // 2. Find unscored jobs for this user
-  const { data: allJobs } = await admin
+  // 2. Find unscored jobs for this user — filtered to their region
+  const region = userRegion(profile.target_location);
+  let allJobsQuery = admin
     .from('jobs')
     .select('id, title, company, description')
     .order('posted_at', { ascending: false, nullsFirst: false })
     .limit(50);
+  if (region !== 'other') {
+    allJobsQuery = allJobsQuery.in('region', [region, 'remote']);
+  }
+  const { data: allJobs } = await allJobsQuery;
 
   const { data: existingScores } = await admin
     .from('match_scores')

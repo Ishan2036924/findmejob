@@ -1,6 +1,7 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import type { ResumeJson } from '@/lib/ai/schemas/profile';
+import { userRegion } from './region';
 
 export type FeedJob = {
   id: string;
@@ -39,18 +40,27 @@ export async function getFeed(): Promise<FeedResult> {
   // Profile readiness check — match scoring needs target_role_family + resume_json
   const { data: profile } = await supabase
     .from('profiles')
-    .select('target_role_family, target_seniority, resume_json')
+    .select('target_role_family, target_seniority, target_location, resume_json')
     .eq('id', user.id)
     .single();
 
   const profileReady =
     !!profile?.target_role_family && !!profile?.target_seniority && !!profile?.resume_json;
 
-  const { data: jobsRaw } = await supabase
+  // Region filter: a Delhi NCR user shouldn't see California-only roles.
+  // 'other' = no filter (e.g. user typed "Remote" or left it blank).
+  // Otherwise show region ∪ 'remote' (truly remote postings are universal).
+  const region = userRegion(profile?.target_location);
+
+  let jobsQuery = supabase
     .from('jobs')
-    .select('id, title, company, location, description, posted_at, source, source_url')
+    .select('id, title, company, location, description, posted_at, source, source_url, region')
     .order('posted_at', { ascending: false, nullsFirst: false })
     .limit(50);
+  if (region !== 'other') {
+    jobsQuery = jobsQuery.in('region', [region, 'remote']);
+  }
+  const { data: jobsRaw } = await jobsQuery;
 
   // Most-recent ingest timestamp across the whole table — surfaced in the
   // feed header as a "last refreshed" hint.

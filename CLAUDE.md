@@ -1,25 +1,25 @@
 ---
 project: findmejob
 working_dir: /Users/ishansrivastava/Desktop/Projects/Findmejob
-phase: Slice 1 build — Steps 1-5 shipped; Step 6 in progress
-slice: Slice 1 in progress (paste-a-job + applications shipping in Step 6c, LaTeX/PDF in 6a)
-version: 0.7.0
-last_updated: 2026-04-29
+phase: Slice 3 reshape complete — Phase 7.1 NO-GO by 0.05; 2 small fixes pending
+slice: Slice 3 reshape (cost + agentic + attachments + LinkedIn + content safety + role expansion + synth eval)
+version: 0.13.0
+last_updated: 2026-05-01
 production_url: https://findmejob-nu.vercel.app
 github_repo: https://github.com/Ishan2036924/findmejob
-primary_stack: Next.js (App Router) + Supabase + Vercel AI Gateway
-max_lines: 200
+primary_stack: Next.js (App Router) + Supabase + AI SDK 6 (direct provider SDKs)
+max_lines: 220
 ---
 
-# CLAUDE.md — CareerForge master entry
+# CLAUDE.md — findmejob master entry
 
 Every session starts here. Read this file first. It tells you what to read next based on what you're doing.
 
 ---
 
-## What CareerForge is (one line)
+## What findmejob is (one line)
 
-AI-native career platform: candid rubric-grounded profile assessment + personalized roadmap + verified job aggregation + per-job on-demand artifacts (tailored resume, cover letter, interview prep, outreach drafts, company brief) + personalized career agent with full longitudinal context of the user's job-search history.
+AI-native career platform: candid rubric-grounded profile assessment + verified job aggregation + on-demand artifacts (tailored resume, cover letter, interview prep, outreach drafts, company brief) + master career agent (chat) that drives every action via tools + longitudinal analytics + LinkedIn-aware onboarding.
 
 **Target user (v1):** job seekers and students in **India + USA, equal priority.** No primary-vs-secondary market split. Default `target_location` is user-picked at onboarding.
 
@@ -27,70 +27,73 @@ AI-native career platform: candid rubric-grounded profile assessment + personali
 
 ## Read-next pointers (by task type)
 
-| Task                                     | Read in order                                                 |
-|------------------------------------------|---------------------------------------------------------------|
-| Resuming work after a break              | LOG.md (last 5 entries)                                       |
-| **Writing any Next.js code**             | `AGENTS.md`, then `node_modules/next/dist/docs/` per topic    |
-| Architecture / system design             | NOTES.md `## Architecture` (Phase 2+ only)                    |
-| Domain question (ATS, LaTeX, jobs)       | NOTES.md `## Domain`                                          |
-| Model / provider question                | NOTES.md `## Models`                                          |
-| Term you don't recognize                 | NOTES.md `## Glossary`                                        |
-| "Why did we decide X?"                   | LOG.md (search `[DECISION]`)                                  |
-| New slice planning                       | This file `## Slicing plan` + LOG.md last DECISION            |
-
-If a section reference points to a file that doesn't exist or is empty, that section hasn't been built yet — note it and ask before assuming.
+| Task | Read in order |
+|---|---|
+| Resuming work after a break | LOG.md (last 5 entries), this file `## Current focus` |
+| Synth eval status / what's pending | `scripts/synth/SUMMARY.md` then `scripts/synth/REPORT.md` |
+| Architecture / system design | NOTES.md `## Architecture` |
+| Domain question (ATS, LaTeX, jobs, rubrics) | NOTES.md `## Domain` |
+| Model / provider question | NOTES.md `## Models` |
+| Term you don't recognize | NOTES.md `## Glossary` |
+| "Why did we decide X?" | LOG.md (search `[DECISION]`) |
+| Adding a new role family | `src/lib/ai/prompts/rubrics/` follow `swe.v1.ts` template + register in `index.ts` |
 
 ---
 
 ## Hard rules (non-negotiable)
 
-1. **Push back, don't please.** No sycophancy. If the user's plan has a flaw, say so with reasoning. Senior, not eager.
-2. **Phase gates are real.** Stop and request approval at the end of every phase. Do not skip ahead.
-3. **Token economy is sacred.** Structured > prose. Tables/YAML/bullets. No fluffy paragraphs in memory files. Every file states its max length; propose a split when crossed.
-4. **Append to LOG.md on every decision, build, research, bug, pivot.** Format below.
-5. **Update LOG.md `## Last session` block at session end** before closing.
-6. **Brutal honesty stays internal.** Do not reuse the word "brutal" in user-facing copy or UI — call it "candid + actionable" externally.
-7. **No code in Phase 0/1.** Architecture and research only.
-8. **Single stack.** Next.js full-stack on Vercel. Python only inside Vercel Sandbox for libs with no JS equivalent (e.g. JobSpy). No FastAPI server.
-9. **Models default through Vercel AI Gateway** using `provider/model` strings — never hardcode SDK provider packages unless explicitly required.
-10. **Anti-injection hygiene** for any LLM call that takes user-supplied resume / JD content (delimiters, role clamping, output schemas).
+1. **Push back, don't please.** No sycophancy. If user's plan has a flaw, say so with reasoning. Senior, not eager.
+2. **Follow the user's plan after pushback.** Concerns inline as `[suggestion]`, never silent substitutions. (See memory: `feedback_follow_user_plan.md`.)
+3. **User runs commits + pushes himself.** Provide commands; never run `git commit` / `git push`. (See memory: `feedback_user_commits.md`.)
+4. **Phase gates are real.** Stop and request approval at the end of every phase.
+5. **Token economy.** Structured > prose. Tables/YAML/bullets in memory files.
+6. **Append to LOG.md on every decision/build/research/bug/pivot.**
+7. **Brutal honesty stays internal.** External copy uses "candid + actionable."
+8. **Single stack.** Next.js full-stack on Vercel + Supabase. Python only inside Vercel Sandbox for libs with no JS equivalent.
+9. **Direct provider SDKs:** `@ai-sdk/openai` for non-moat (mini), `@ai-sdk/anthropic` for moat (Sonnet). The earlier "Vercel AI Gateway only" rule was relaxed because BYOK direct billing is what the user actually uses. Gateway pattern remains acceptable.
+10. **Anti-injection hygiene** for any LLM call that takes user-supplied resume / JD / attachment content (delimiters, role clamping, output schemas).
+11. **Zod 4 + LLM structured output** — NO `.optional()` (use `.nullable()`), NO `.int()`, NO `.min/.max` on integers/arrays, NO `z.record()`. (See memory: `feedback_zod_llm_schemas.md`.)
+12. **Pull Vercel runtime logs autonomously** via `vercel logs --no-follow --json`. Don't ask user to paste toasts. (See memory: `feedback_vercel_logs.md`.)
+13. **Puppeteer for autonomous UI inspection.** Playwright rejected. Snap script at `scripts/snap.mjs`. (See memory: `feedback_no_screenshot_tooling.md`.)
 
 ---
 
-## Current focus
+## Current focus (2026-05-01)
 
-**Phase:** Slice 1 build, Step 6.
+**Phase:** Slice 3 reshape complete. Phase 7.1 synth eval ran. Verdict: **NO-GO by 0.05** (chat agent 3.45/5 vs 3.50 gate).
 
-**Shipped:** auth, onboarding, assessment (Sonnet), feed (JSearch with mock fallback), match scoring (mini), live at https://findmejob-nu.vercel.app.
+**What's shipped end-to-end:**
+- All of Slice 1 (assessment + match score + JSearch feed + tailored resume HTML + paste-a-job + applications log)
+- All of Slice 2 (per-job artifact buttons + practice mode + multi-source ingest with daily cron + AppShell + chat agent + analytics + PDF upload)
+- All of Slice 3 reshape (rate limits + once-daily feed + 19-tool master agent + chat attachments with vision + LinkedIn-aware onboarding + content safety + memory cap + rolling thread summary + 17 role families with rubrics)
 
-**In flight:** Step 6 expansion to ship paste-a-job + applications log (formerly Slice 3) alongside the tailored resume PDF (originally just 6a). Order: 6c (applications shell) → 6b (paste-a-job) → 6a (LaTeX/Tectonic/Sandbox PDF).
+**2 pending fixes before beta-ready GO verdict:**
+1. **Off-topic refusal** (1/5) — career-agent system prompt missing "decline non-career questions" line. User A produced biryani recipe instead of refusing. ~5min fix.
+2. **Assessment latency for senior AI/ML** (1/5) — User B Sonnet assessment took 187s (3× the 60s budget). Investigate prompt-cache hits + consider chunking complex resumes.
 
-**Last decision (2026-04-29):** lazy per-button artifact generation, not eager bundles. Per-job dashboard at /applications/[id] has artifact buttons (cover letter, company brief, interview Qs, outreach, practice). Each is its own server action + DB row. Saves tokens on artifacts users don't ask for. Application tracker becomes the SHELL of Slice 2, not a separate Slice 3 feature.
+**Not committed yet:** the role family expansion (17 active families + 15 new rubrics + match-score & career-agent rubric injection) is on disk but not pushed. User has been pushing commits manually.
+
+**Synth users in DB:** `synth-{a,b,c}@findmejob.test` (password `synth-password-2026`). Cleanup script ready at `scripts/synth/cleanup.ts` — user hasn't run it yet.
 
 ---
 
-## Slicing plan (release map)
+## Slicing plan (actual delivery, not original plan)
 
-The destination is the full vision in the original architecture prompt. The path is sliced.
+Original 5-slice plan in plan file `/Users/ishansrivastava/.claude/plans/this-is-my-plan-jaunty-swing.md` was reshaped mid-flight. Actual delivery:
 
-| Slice | Scope                                                                                                                                | Est.  |
-|-------|--------------------------------------------------------------------------------------------------------------------------------------|-------|
-| 1     | Assessment + match score + JSearch feed + tailored resume PDF + **paste-a-job (URL/JD) + applications log**                         | 5–6w  |
-| 2     | **Per-job dashboard** w/ on-demand artifact buttons: cover letter, company brief, interview Qs, outreach, **practice mode** (mock-Q&A) | 3–4w  |
-| —     | **Beta opens.** Onboard 20–50 users. Capture outcomes.                                                                              | —     |
-| 3     | Roadmap engine (skill→resource map) + portfolio analysis + **application analytics** ("top 3 gaps across applied JDs")              | 4w    |
-| 4     | **Daily cron ingestion** + multi-source (Greenhouse/Lever/Ashby/AngelList + JSearch India + US) + curated US/India company list + ghost-job detection | 4w    |
-| 5     | LinkedIn analysis (paste-in only) + realistic-chance estimator (calibrated post-data)                                                | 3w    |
-| —     | **GA + paid tiers.** Payment structure decided here with real usage data.                                                            | —     |
+| Slice | Status | What it covered |
+|---|---|---|
+| 1 | ✅ shipped | Assessment + match score + feed + tailored resume + paste-a-job + applications log |
+| 2 | ✅ shipped | Per-job artifact buttons + practice + multi-source ingest + AppShell + chat agent + analytics + PDF upload |
+| 3 reshape | ✅ shipped | Rate limits + master-agent expansion + attachments+vision + LinkedIn import + content safety + memory hygiene + role family expansion (17 active) |
+| Phase 7 | ✅ ran | Synth eval w/ 76-param rubric — exposed 4 critical safety failures |
+| Phase 7.1 | ✅ ran | Safety fixes + chat agent grading. Verdict: NO-GO by 0.05 |
+| Phase 7.2 (next) | pending | Off-topic refusal + B latency investigation → re-run synth → expected GO |
+| Beta opens | pending | After Phase 7.2 GO verdict |
+| Slice 4 | unbuilt | Roadmap engine + portfolio analysis (already covered: multi-source, analytics — moved into Slice 2) |
+| Slice 5 | unbuilt | Realistic-chance estimator (post-beta data) |
 
-Deferred and explicitly scoped out of v1:
-- LinkedIn auto-fetch (ToS risk).
-- "Realistic chance" estimator until beta gives outcome data to calibrate.
-- Naukri/Internshala/Cutshort scraping. Aggregators only.
-- Auto-apply on user's behalf. Never (abuse risk).
-- Voice / video practice. Post-GA.
-
-**On-demand vs eager:** every Slice 2 artifact (cover letter, brief, interview Qs, outreach) is generated by an explicit user click on the per-job dashboard, not auto-generated. Users only spend tokens on what they actually want.
+**Permanently deferred:** LinkedIn auto-fetch (ToS); Naukri/Internshala scraping; auto-apply on user's behalf; voice/video practice.
 
 ---
 
@@ -98,38 +101,42 @@ Deferred and explicitly scoped out of v1:
 
 1. Read this file.
 2. Read `.claude/LOG.md` last 5 entries.
-3. State in one line what you understand the current state to be and what you're about to do.
-4. Wait for confirmation if anything is unclear.
+3. Read `scripts/synth/SUMMARY.md` if eval-related work.
+4. State in one line what you understand the current state to be and what you're about to do.
+5. Wait for confirmation if anything is unclear.
 
 ## How to end a session (checklist)
 
 1. Append to `.claude/LOG.md` (one entry per decision/build/research/bug/pivot).
 2. Update `.claude/LOG.md` `## Last session` block (overwrite).
 3. Update this file's frontmatter (`phase`, `slice`, `version`, `last_updated`) if any changed.
-4. Tell the user what files changed and why.
+4. Update memory files at `~/.claude/projects/-Users-ishansrivastava-Desktop-Projects-Findmejob/memory/` for any durable feedback or project state changes.
+5. Tell the user what files changed and why.
 
 ---
 
 ## File budget (memory tier)
 
-| File                  | Max lines | Purpose                                                     |
-|-----------------------|-----------|-------------------------------------------------------------|
-| CLAUDE.md (this)      | 200       | Entry point, hard rules, current focus, read-next routing.  |
-| .claude/NOTES.md      | 600       | Project facts + domain + glossary + models + architecture.  |
-| .claude/LOG.md        | 800       | Append-only log + last-session block.                       |
+| File | Max lines | Purpose |
+|---|---|---|
+| CLAUDE.md (this) | 220 | Entry point, hard rules, current focus, read-next routing |
+| .claude/NOTES.md | 600 | Project facts + domain + glossary + models + architecture |
+| .claude/LOG.md | 1500 | Append-only log + last-session block (raised from 800 — log is the durable record) |
 
-When NOTES.md crosses 600 lines, propose splitting one well-isolated section into its own file (e.g., `.claude/ARCHITECTURE.md`). Do not split before that — premature.
+When NOTES.md crosses 600 lines, propose splitting one well-isolated section.
 
 ---
 
 ## Stack snapshot (full detail in NOTES.md `## Architecture`)
 
-- **Frontend + API:** Next.js App Router on Vercel (Fluid Compute).
-- **DB + Auth + Storage:** Supabase (Postgres + RLS + Auth + Storage).
-- **LLM routing:** Vercel AI Gateway (`provider/model` strings).
-- **Primary LLM:** Anthropic Sonnet 4.6 — moat features ONLY (profile assessment + resume tailoring). BYOK direct via `@ai-sdk/anthropic`. Prompt caching mandatory.
-- **Secondary LLM:** OpenAI GPT-4.1 mini — everything else, no exceptions: cover letter, company brief, interview Qs, outreach drafts, practice mode, roadmap, match scoring, resume parsing, job extraction, **career agent (Slice 3)**, memory distiller, thread summarizer. BYOK direct via `@ai-sdk/openai`. New features default here.
-- **Resume engine:** LaTeX via Tectonic, edit-via-JSON pattern, compiled in Vercel Sandbox.
-- **Background jobs:** Vercel Queues (beta) + cron.
-- **Multi-agent orchestration:** Vercel Workflow DevKit (durable, pause/resume, retries).
-- **Python-only deps (e.g., JobSpy):** Vercel Sandbox microVM, called from a Next.js handler.
+- **Frontend + API:** Next.js 16 App Router on Vercel (Fluid Compute, Node.js runtime).
+- **DB + Auth + Storage:** Supabase (Postgres + RLS + Auth + Storage). Buckets: `resumes`, `chat-attachments`.
+- **Primary LLM (moat only):** Anthropic Sonnet 4.5/4.6 — assessment + resume tailoring. Direct via `@ai-sdk/anthropic`. Prompt caching mandatory.
+- **Secondary LLM (everything else):** OpenAI GPT-4.1-mini — cover letter, brief, interview Qs, outreach, practice, match score, resume parser, job extractor, **career agent (master), memory distiller, thread summarizer, content moderation**. Direct via `@ai-sdk/openai`. Vision-capable for chat attachments.
+- **Resume engine v1:** HTML preview + browser-print PDF (LaTeX/Tectonic deferred post-beta).
+- **Background jobs:** Vercel cron (daily ingest at 06:00 IST, also scores all onboarded users).
+- **Anti-multi-agent decision:** single tool-using agent with 19 tools (read + write). NOT multi-agent orchestration. The user's "master + subagents" mental model maps to "master agent calls subagent tools" — same UX, simpler implementation.
+- **Role families:** 17 active + 1 fallback. Each has a rubric in `src/lib/ai/prompts/rubrics/<slug>.v1.ts` registered in `index.ts`. Rubric injected into assessment + match-score + career-agent (compact form).
+- **Content safety:** OpenAI omni-moderation-latest on user input + regex PII pre-check (SSN, credit-card with Luhn, passport, Aadhaar). Hard-blocks: `sexual/minors`, `self-harm/instructions`, `self-harm/intent`, `violence`, `violence/graphic`, `illicit`, `illicit/violent`, `harassment/threatening`, `hate/threatening`.
+- **Memory hygiene:** Top 50 memories per turn (env-tunable `MEMORY_CONTEXT_CAP`), ranked by `importance × last_used_at × created_at`. Rolling 2-3-sentence thread summary kicks in past 30 messages.
+- **Cost guardrails:** 6 daily caps, env-tunable: chat 50, artifacts 10, practice 20, attachments 10, paste-JD 20, agent-driven refresh 1.

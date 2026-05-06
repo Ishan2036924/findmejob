@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getFeed } from '@/lib/jobs/queries';
 import { getCurrentUserProfile, isOnboardingComplete } from '@/lib/profile/queries';
 import { JobCard } from './job-card';
+import { RefreshFeedButton } from './refresh-feed-button';
 
 export const metadata = {
   title: 'Jobs · findmejob',
@@ -28,21 +29,25 @@ export default async function JobsPage() {
   return (
     <div className="flex flex-col">
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-12 sm:px-10">
-        <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
-            Verified feed
-          </span>
-          <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-            {feed.hasJobs ? `${feed.jobs.length} roles` : 'Your feed'}
-          </h1>
-          <p className="text-xs text-muted-foreground/70">
-            Feed refreshes once daily at 06:00 IST. {lastRefreshHint}
-          </p>
-          {feed.hasJobs && (
-            <p className="text-sm text-muted-foreground">
-              Sorted by match. {feed.unscored > 0 && `${feed.unscored} unscored.`}
+        <div className="flex flex-row items-start justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              Verified feed
+            </span>
+            <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+              {feed.hasJobs ? `${feed.jobs.length} roles` : 'Your feed'}
+            </h1>
+            <p className="text-xs text-muted-foreground/70">
+              Feed updates once every 24h — auto cron at 06:00 IST + you can pull manually once per day.{' '}
+              {lastRefreshHint}
             </p>
-          )}
+            {feed.hasJobs && (
+              <p className="text-sm text-muted-foreground">
+                Sorted by match. {feed.unscored > 0 && `${feed.unscored} unscored.`}
+              </p>
+            )}
+          </div>
+          <RefreshFeedButton hasJobs={feed.hasJobs} unscored={feed.unscored} />
         </div>
 
         {!feed.hasJobs && (

@@ -51,6 +51,21 @@ export default async function TailoredResumePage({
           set destination to <span className="text-foreground">Save as PDF</span>. Layout is
           ATS-friendly single-column.
         </p>
+        {resume.source === 'ai_tailored' && (
+          <div className="mb-6 w-full max-w-[8.5in] rounded-2xl border border-white/10 bg-card/40 p-4 print:hidden">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Tailoring summary
+            </span>
+            <p className="mt-2 text-sm text-foreground">
+              {resume.tailoring_meta?.meta_summary ?? 'No tailoring metadata available.'}
+            </p>
+            {resume.tailoring_meta?.applied != null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {resume.tailoring_meta.applied} edit operations applied
+              </p>
+            )}
+          </div>
+        )}
         <ResumeDocument resume={resume.resume_json} />
         <p className="mt-4 max-w-[8.5in] self-center text-center font-mono text-[10px] text-muted-foreground/60 print:hidden">
           {resume.source} · generated {new Date(resume.created_at).toLocaleString()}

@@ -4,6 +4,7 @@ import { fetchJobs as fetchJSearchJobs } from './jsearch';
 import { fetchGreenhouseJobs, fetchLeverJobs, fetchAshbyJobs } from './ats';
 import { CURATED_COMPANIES } from './curated-companies';
 import type { RawJob } from './mock-jobs';
+import { inferRegion } from './region';
 
 export type IngestResult = {
   totalFetched: number;
@@ -82,9 +83,9 @@ export async function ingestJobs(opts?: {
     }
   }
 
-  await runBatch(greenhouse, (c) => fetchGreenhouseJobs(c.slug, c.name), 'greenhouse');
-  await runBatch(lever, (c) => fetchLeverJobs(c.slug, c.name), 'lever');
-  await runBatch(ashby, (c) => fetchAshbyJobs(c.slug, c.name), 'ashby');
+  await runBatch(greenhouse, (c) => fetchGreenhouseJobs(c.slug, c.name, c.hq_region), 'greenhouse');
+  await runBatch(lever, (c) => fetchLeverJobs(c.slug, c.name, c.hq_region), 'lever');
+  await runBatch(ashby, (c) => fetchAshbyJobs(c.slug, c.name, c.hq_region), 'ashby');
 
   // 3. Upsert (service-role, bypasses RLS — jobs are public-read)
   let upserted = 0;
@@ -99,6 +100,9 @@ export async function ingestJobs(opts?: {
       location: j.location,
       description: j.description,
       posted_at: j.posted_at,
+      // Belt + suspenders: every fetcher sets region, but if a future source
+      // forgets we still infer at the upsert site rather than landing nulls.
+      region: j.region ?? inferRegion(j.location),
       last_seen_at: new Date().toISOString(),
     }));
     const { error } = await admin

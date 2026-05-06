@@ -1,5 +1,6 @@
 import 'server-only';
 import type { RawJob } from '../mock-jobs';
+import { inferRegion, type JobRegion } from '../region';
 
 type LeverJob = {
   id: string;
@@ -28,6 +29,7 @@ const FETCH_TIMEOUT_MS = 12_000;
 export async function fetchLeverJobs(
   slug: string,
   companyName: string,
+  hqRegion?: JobRegion,
 ): Promise<RawJob[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -47,15 +49,17 @@ export async function fetchLeverJobs(
         .filter(Boolean)
         .join('\n\n');
       const created = j.createdAt ? new Date(j.createdAt).toISOString() : new Date().toISOString();
+      const location = j.categories?.location ?? 'Unknown';
       return {
         source: 'lever' as const,
         source_id: j.id,
         source_url: j.hostedUrl,
         title: j.text,
         company: companyName,
-        location: j.categories?.location ?? 'Unknown',
+        location,
         description,
         posted_at: created,
+        region: inferRegion(location, hqRegion),
       };
     });
   } catch (err) {

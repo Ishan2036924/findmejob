@@ -39,11 +39,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vercel/config": "^0.2.1",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "puppeteer": "^24.42.0",
+    "server-only": "^0.0.1",
     "supabase": "^2.95.5",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   },
   "pnpm": {

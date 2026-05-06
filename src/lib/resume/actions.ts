@@ -114,6 +114,23 @@ export async function generateTailoredResume(
     });
   }
 
+  // If nothing applied, surface as a soft error and DO NOT persist a misleading
+  // "tailored" copy that's identical to the base.
+  if (applied === 0) {
+    console.warn('[generateTailoredResume] no edits applied', {
+      applicationId,
+      jobId: job.id,
+      skippedCount: skipped.length,
+      meta_summary: tailorResult.output.meta_summary,
+    });
+    return {
+      ok: false,
+      error: 'tailoring_no_changes',
+      message:
+        'Tailoring suggested no changes. The agent may have struggled with this JD — try again or paste the JD text directly.',
+    };
+  }
+
   // 6. Insert resume row (compile_status='success' since we render via HTML preview)
   const { data: resumeRow, error: resumeErr } = await supabase
     .from('resumes')
@@ -155,6 +172,10 @@ export async function generateTailoredResume(
 
   revalidatePath(`/applications/${applicationId}`);
   revalidatePath(`/applications/${applicationId}/resume/${resumeRow.id}`);
+
+  console.info(
+    `[tailor] applied=${applied} skipped=${skipped.length} job=${job.id} app=${applicationId}`,
+  );
 
   return {
     ok: true,
