@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation';
+import { Brain } from 'lucide-react';
 import { listMemories } from '@/lib/memory/queries';
 import { getCurrentUserProfile } from '@/lib/profile/queries';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui-kit';
 import { AddMemoryDialog } from './add-memory-dialog';
 import { DeleteMemoryButton } from './delete-memory-button';
 
@@ -48,12 +50,11 @@ export default async function MemoryPage() {
       </div>
 
       {memories.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-card/30 p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            No memories yet. Tell the agent things like &quot;remember that I
-            prefer concise answers&quot; and they&apos;ll appear here.
-          </p>
-        </div>
+        <EmptyState
+          icon={Brain}
+          title="No memories yet"
+          description='Tell the agent things like "remember that I prefer concise answers" and they will appear here.'
+        />
       ) : (
         <ul className="flex flex-col gap-3">
           {memories.map((m) => (

@@ -92,9 +92,10 @@ export function ApplicationsList({ apps }: { apps: ApplicationListItem[] }) {
       )}
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-card/30 p-8 text-center text-sm text-muted-foreground backdrop-blur">
-          No applications in this status.
-        </div>
+        <EmptyState
+          title="Nothing in this status"
+          description="Try a different filter or save more jobs from the feed."
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map((app) => (

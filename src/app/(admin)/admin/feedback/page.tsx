@@ -1,6 +1,14 @@
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/admin/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { Card } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { FeedbackRow } from './feedback-row';
 
 export const metadata = {
@@ -101,14 +109,12 @@ export default async function AdminFeedbackPage() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">
-          Admin
-        </span>
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">Admin</span>
         <h1 className="text-3xl font-semibold tracking-tight">Feedback</h1>
         <p className="text-sm text-muted-foreground">
-          User-submitted bug reports and feedback. Newest first.
+          User-submitted bug reports and feedback. Click a row to triage.
         </p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
           <Pill label={`new ${counts.new}`} tone="amber" />
@@ -119,36 +125,41 @@ export default async function AdminFeedbackPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/5 bg-card/40">
-        <div className="grid grid-cols-[160px_minmax(0,1fr)_minmax(0,2fr)_120px] gap-3 border-b border-white/5 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          <span>Created</span>
-          <span>User</span>
-          <span>Body</span>
-          <span>Status</span>
-        </div>
+      <Card className="overflow-hidden p-0">
         {items.length === 0 ? (
           <div className="px-4 py-12 text-center text-sm text-muted-foreground">
             No feedback yet.
           </div>
         ) : (
-          <ul className="divide-y divide-white/5">
-            {items.map((item) => (
-              <FeedbackRow
-                key={item.id}
-                id={item.id}
-                createdAt={item.created_at}
-                email={item.email}
-                body={item.body}
-                pageUrl={item.page_url}
-                status={item.status}
-                adminNotes={item.admin_notes}
-                attachmentUrl={item.attachment_url}
-                attachmentName={item.attachment_name}
-              />
-            ))}
-          </ul>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[160px]">Created</TableHead>
+                <TableHead className="w-[200px]">User</TableHead>
+                <TableHead>Body</TableHead>
+                <TableHead className="w-[110px]">Status</TableHead>
+                <TableHead className="w-[40px]" aria-label="expand" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <FeedbackRow
+                  key={item.id}
+                  id={item.id}
+                  createdAt={item.created_at}
+                  email={item.email}
+                  body={item.body}
+                  pageUrl={item.page_url}
+                  status={item.status}
+                  adminNotes={item.admin_notes}
+                  attachmentUrl={item.attachment_url}
+                  attachmentName={item.attachment_name}
+                />
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </Card>
 
       <div className="text-xs text-muted-foreground">
         <Link href="/dashboard" className="underline-offset-4 hover:underline">

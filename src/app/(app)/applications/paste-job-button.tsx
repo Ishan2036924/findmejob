@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Link as LinkIcon, Loader2, Plus, Type } from 'lucide-react';
+import { AlertTriangle, Link as LinkIcon, Loader2, Plus, Type } from 'lucide-react';
 import { toast } from 'sonner';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -26,6 +27,7 @@ export function PasteJobButton() {
   const [tab, setTab] = useState<'url' | 'text'>('url');
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function submit() {
@@ -34,23 +36,33 @@ export function PasteJobButton() {
       toast.error('Paste at least 100 characters of JD text.');
       return;
     }
+    setSubmitError(null);
 
     startTransition(async () => {
       const result = tab === 'url' ? await pasteJobFromUrl(url) : await pasteJobFromText(text);
       if (!result.ok) {
-        toast.error(result.message ?? result.error);
+        const msg = result.message ?? result.error;
+        toast.error(msg);
+        setSubmitError(msg);
         return;
       }
       toast.success('Job added to your applications');
       setOpen(false);
       setUrl('');
       setText('');
+      setSubmitError(null);
       router.push(`/applications/${result.applicationId}`);
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setSubmitError(null);
+      }}
+    >
       <DialogTrigger>
         <Button
           size="lg"
@@ -121,6 +133,14 @@ export function PasteJobButton() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {submitError && (
+          <Alert variant="destructive" className="bg-card/40">
+            <AlertTriangle className="size-4" />
+            <AlertTitle>Couldn&apos;t add this job</AlertTitle>
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>

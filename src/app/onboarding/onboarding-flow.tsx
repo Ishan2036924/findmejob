@@ -66,6 +66,7 @@ export function OnboardingFlow({
   const [form, setForm] = useState<FormState>(initialProfile);
   const [pending, startTransition] = useTransition();
   const [isCompleting, setIsCompleting] = useState(false);
+  const [triedAdvance, setTriedAdvance] = useState(false);
 
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
@@ -77,6 +78,11 @@ export function OnboardingFlow({
         : true;
 
   function next() {
+    if (!canAdvance) {
+      setTriedAdvance(true);
+      return;
+    }
+    setTriedAdvance(false);
     const i = STEPS.findIndex((s) => s.key === step);
     if (i < STEPS.length - 1) setStep(STEPS[i + 1].key);
   }
@@ -194,6 +200,14 @@ export function OnboardingFlow({
                   );
                 })}
               </div>
+              {triedAdvance && !form.target_role_family && (
+                <p
+                  role="alert"
+                  className="text-[11px] text-rose-300/90"
+                >
+                  Pick a role family to continue.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-3">
@@ -232,6 +246,11 @@ export function OnboardingFlow({
                   );
                 })}
               </div>
+              {triedAdvance && !form.target_seniority && (
+                <p role="alert" className="text-[11px] text-rose-300/90">
+                  Pick a seniority level.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-2.5">
@@ -272,6 +291,11 @@ export function OnboardingFlow({
                   );
                 })}
               </div>
+              {triedAdvance && form.target_location.trim().length === 0 && (
+                <p role="alert" className="text-[11px] text-rose-300/90">
+                  Tell us where you want to work.
+                </p>
+              )}
             </div>
           </motion.div>
         )}
@@ -405,9 +429,13 @@ export function OnboardingFlow({
           <Button
             type="button"
             onClick={next}
-            disabled={!canAdvance || pending || isCompleting}
+            disabled={pending || isCompleting}
+            aria-disabled={!canAdvance}
             size="lg"
-            className="min-w-[140px] flex-1 sm:flex-none"
+            className={cn(
+              'min-w-[140px] flex-1 sm:flex-none',
+              !canAdvance && 'opacity-60',
+            )}
           >
             Continue
             <ArrowRight className="size-4" data-icon="inline-end" />

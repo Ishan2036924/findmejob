@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import Link from 'next/link';
+import { AdminNav } from '@/components/admin/admin-nav';
 
 export const metadata = { title: 'Admin · findmejob' };
 
@@ -10,14 +10,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
           findmejob admin
         </span>
-        <nav className="ml-4 flex gap-3 text-xs">
-          <Link
-            href="/admin/feedback"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Feedback
-          </Link>
-        </nav>
+        <AdminNav />
       </header>
       <main className="px-6 py-8">{children}</main>
     </div>

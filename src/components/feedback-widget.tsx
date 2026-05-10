@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { usePathname } from 'next/navigation';
 import {
+  AlertTriangle,
   Loader2,
   MessageSquareWarning,
   Paperclip,
@@ -19,6 +20,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -37,6 +39,7 @@ export function FeedbackWidget() {
   const [uploadedId, setUploadedId] = useState<string | null>(null);
   const [uploading, startUpload] = useTransition();
   const [submitting, startSubmit] = useTransition();
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -44,6 +47,7 @@ export function FeedbackWidget() {
     setPageUrl(pathname ?? '');
     setFile(null);
     setUploadedId(null);
+    setSubmitError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -81,6 +85,7 @@ export function FeedbackWidget() {
       toast.error('Wait for the upload to finish.');
       return;
     }
+    setSubmitError(null);
     startSubmit(async () => {
       const fd = new FormData();
       fd.append('body', body.trim());
@@ -90,6 +95,7 @@ export function FeedbackWidget() {
       const res = await submitFeedback(fd);
       if (!res.ok) {
         toast.error(res.message);
+        setSubmitError(res.message);
         return;
       }
       toast.success("Thanks — we'll review this.");
@@ -105,6 +111,7 @@ export function FeedbackWidget() {
         setOpen(next);
         // When opening, refresh the auto-filled page URL.
         if (next) setPageUrl(pathname ?? '');
+        if (!next) setSubmitError(null);
       }}
     >
       <SheetTrigger
@@ -209,6 +216,14 @@ export function FeedbackWidget() {
               )}
             </div>
           </div>
+
+          {submitError && (
+            <Alert variant="destructive" className="bg-card/40">
+              <AlertTriangle className="size-4" />
+              <AlertTitle>Couldn&apos;t send</AlertTitle>
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-white/5 px-5 py-4">

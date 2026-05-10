@@ -12,6 +12,7 @@ import {
 } from '@/lib/applications/analytics';
 import { COMPANY_TYPE_LABELS, type CompanyType } from '@/lib/ai/agents/company-classifier';
 import { getCurrentUserProfile, isOnboardingComplete } from '@/lib/profile/queries';
+import { EmptyState } from '@/components/ui-kit';
 import { FunnelChart } from './funnel-chart';
 import { TimeSeriesChart } from './timeseries-chart';
 import { BucketChart } from './bucket-chart';
@@ -41,16 +42,12 @@ export default async function AnalyticsPage() {
     return (
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-10 sm:py-12">
         <PageHeader />
-        <div className="rounded-2xl border border-dashed border-white/10 bg-card/30 p-10 text-center backdrop-blur">
-          <BarChart3 className="mx-auto size-6 text-muted-foreground/60" strokeWidth={1.5} />
-          <p className="mt-4 text-sm text-muted-foreground">
-            No applications yet. Save jobs from the{' '}
-            <Link href="/jobs" className="text-foreground underline-offset-4 hover:underline">
-              feed
-            </Link>{' '}
-            or paste any job link to start tracking — analytics light up here automatically.
-          </p>
-        </div>
+        <EmptyState
+          icon={BarChart3}
+          title="No applications yet"
+          description="Save jobs from the feed or paste any job link to start tracking — analytics light up here automatically."
+          action={{ label: 'Browse jobs', href: '/jobs' }}
+        />
       </main>
     );
   }

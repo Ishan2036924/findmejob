@@ -5,6 +5,7 @@ import { ChevronDown, ExternalLink, Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { TableCell, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { updateFeedback } from '@/lib/feedback/actions';
 
@@ -58,130 +59,135 @@ export function FeedbackRow({
   }
 
   return (
-    <li className="flex flex-col">
-      <button
-        type="button"
+    <>
+      <TableRow
+        aria-expanded={expanded}
+        className="cursor-pointer"
         onClick={() => setExpanded((e) => !e)}
-        className={cn(
-          'grid grid-cols-[160px_minmax(0,1fr)_minmax(0,2fr)_120px] items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-white/[0.02]',
-          expanded && 'bg-white/[0.02]',
-        )}
       >
-        <span className="font-mono text-[11px] text-muted-foreground">
+        <TableCell className="font-mono text-[11px] text-muted-foreground">
           {created.toLocaleString(undefined, {
             month: 'short',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
           })}
-        </span>
-        <span className="truncate text-xs">
+        </TableCell>
+        <TableCell className="max-w-[200px] truncate text-xs">
           {email ?? <span className="text-muted-foreground">unknown</span>}
-        </span>
-        <span className="truncate text-xs text-muted-foreground">{preview}</span>
-        <div className="flex items-center justify-end gap-2">
+        </TableCell>
+        <TableCell className="max-w-[480px] truncate text-xs text-muted-foreground">
+          {preview}
+        </TableCell>
+        <TableCell>
           <StatusBadge status={currentStatus} />
+        </TableCell>
+        <TableCell className="text-right">
           <ChevronDown
             className={cn(
-              'size-3.5 text-muted-foreground transition-transform',
+              'inline size-3.5 text-muted-foreground transition-transform',
               expanded && 'rotate-180',
             )}
             strokeWidth={1.5}
           />
-        </div>
-      </button>
+        </TableCell>
+      </TableRow>
 
       {expanded && (
-        <div className="flex flex-col gap-4 border-t border-white/5 bg-black/20 px-4 py-4">
-          <div className="flex flex-col gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Body
-            </span>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-              {body}
-            </p>
-          </div>
+        <TableRow className="bg-black/20 hover:bg-black/20">
+          <TableCell colSpan={5} className="whitespace-normal p-0">
+            <div className="flex flex-col gap-4 px-4 py-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Body
+                </span>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                  {body}
+                </p>
+              </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Page">
-              {pageUrl ? (
-                <span className="font-mono text-xs">{pageUrl}</span>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </Field>
-            <Field label="Attachment">
-              {attachmentUrl ? (
-                <a
-                  href={attachmentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-foreground underline-offset-4 hover:underline"
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Page">
+                  {pageUrl ? (
+                    <span className="font-mono text-xs">{pageUrl}</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </Field>
+                <Field label="Attachment">
+                  {attachmentUrl ? (
+                    <a
+                      href={attachmentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-foreground underline-offset-4 hover:underline"
+                    >
+                      {attachmentName ?? 'open'}
+                      <ExternalLink className="size-3" strokeWidth={1.5} />
+                    </a>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Status">
+                  <select
+                    value={currentStatus}
+                    onChange={(e) => setCurrentStatus(e.target.value as Status)}
+                    className="rounded-md border border-input bg-transparent px-2.5 py-1.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s} className="bg-popover text-popover-foreground">
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Feedback ID">
+                  <span className="font-mono text-[11px] text-muted-foreground">{id}</span>
+                </Field>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Admin notes
+                </span>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Internal triage notes (not shown to user)."
+                  className="min-h-[80px] text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={save}
+                  disabled={!dirty || pending}
+                  className="gap-2"
                 >
-                  {attachmentName ?? 'open'}
-                  <ExternalLink className="size-3" strokeWidth={1.5} />
-                </a>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Status">
-              <select
-                value={currentStatus}
-                onChange={(e) => setCurrentStatus(e.target.value as Status)}
-                className="rounded-md border border-input bg-transparent px-2.5 py-1.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s} className="bg-popover text-popover-foreground">
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Feedback ID">
-              <span className="font-mono text-[11px] text-muted-foreground">{id}</span>
-            </Field>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Admin notes
-            </span>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Internal triage notes (not shown to user)."
-              className="min-h-[80px] text-xs"
-            />
-          </div>
-
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              onClick={save}
-              disabled={!dirty || pending}
-              className="gap-2"
-            >
-              {pending ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                <>
-                  <Save className="size-3.5" strokeWidth={1.5} />
-                  Save
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
+                  {pending ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Save className="size-3.5" strokeWidth={1.5} />
+                      Save
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </TableCell>
+        </TableRow>
       )}
-    </li>
+    </>
   );
 }
 
