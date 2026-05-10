@@ -387,3 +387,23 @@ export async function getRecentActivity(): Promise<RecentActivity> {
     })),
   };
 }
+
+/**
+ * Cheap count of feedback rows with status = 'new'. Used by the admin layout
+ * to render a red dot on the Feedback nav tab. Service-role; bypasses RLS.
+ *
+ * Failure mode: returns 0 on error. Never throws.
+ */
+export async function getUnreadFeedbackCount(): Promise<number> {
+  try {
+    const admin = createAdminClient();
+    const { count } = await admin
+      .from('feedback')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'new');
+    return count ?? 0;
+  } catch (err) {
+    console.error('[getUnreadFeedbackCount]', err);
+    return 0;
+  }
+}
