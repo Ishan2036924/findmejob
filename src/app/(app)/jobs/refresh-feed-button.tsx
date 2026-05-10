@@ -51,7 +51,7 @@ export function RefreshFeedButton({
       : 'Refresh feed';
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
       <Button
         size="lg"
         disabled={pending}
@@ -74,7 +74,7 @@ export function RefreshFeedButton({
             router.refresh();
           });
         }}
-        className="gap-2"
+        className="w-full gap-2 shadow-lg shadow-primary/10 transition-all hover:-translate-y-px hover:shadow-primary/20 sm:w-auto"
       >
         {pending ? (
           <>
@@ -102,7 +102,7 @@ export function RefreshFeedButton({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.25 }}
-            className="text-right text-xs text-muted-foreground"
+            className="text-xs text-muted-foreground sm:text-right"
           >
             {PHASES[phaseIndex]}
           </motion.div>

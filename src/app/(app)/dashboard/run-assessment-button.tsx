@@ -34,7 +34,7 @@ export function RunAssessmentButton({ existingAssessmentId }: { existingAssessme
       <Button
         size="lg"
         onClick={() => router.push(`/assessment/${existingAssessmentId}`)}
-        className="gap-2"
+        className="w-full gap-2 shadow-lg shadow-primary/10 transition-all hover:-translate-y-px hover:shadow-primary/20 sm:w-auto"
       >
         <Sparkles className="size-4" strokeWidth={1.5} />
         View your assessment
@@ -58,7 +58,7 @@ export function RunAssessmentButton({ existingAssessmentId }: { existingAssessme
             router.push(`/assessment/${result.assessmentId}`);
           });
         }}
-        className="gap-2"
+        className="w-full gap-2 shadow-lg shadow-primary/10 transition-all hover:-translate-y-px hover:shadow-primary/20 sm:w-auto"
       >
         {pending ? (
           <>

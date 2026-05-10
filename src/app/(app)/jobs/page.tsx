@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation';
+import { Briefcase } from 'lucide-react';
 import { getFeed } from '@/lib/jobs/queries';
 import { getCurrentUserProfile, isOnboardingComplete } from '@/lib/profile/queries';
-import { JobCard } from './job-card';
+import { EmptyState, SectionHeader } from '@/components/ui-kit';
+import { JobsFeed } from './jobs-feed';
 import { RefreshFeedButton } from './refresh-feed-button';
 
 export const metadata = {
@@ -26,48 +28,48 @@ export default async function JobsPage() {
   const feed = await getFeed();
   const lastRefreshHint = formatLastRefresh(feed.lastSeenAt);
 
+  // Today's high matches (>= 70) — used as the "matches today" callout.
+  const todayHigh = feed.jobs.filter((j) => j.match && j.match.score >= 70).length;
+
   return (
     <div className="flex flex-col">
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-10 sm:py-12">
-        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
-          <div className="flex flex-col gap-2">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">
-              Verified feed
-            </span>
-            <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-              {feed.hasJobs ? `${feed.jobs.length} roles` : 'Your feed'}
-            </h1>
-            <p className="text-xs text-muted-foreground/70">
-              Feed updates once every 24h — auto cron at 06:00 IST + you can pull manually once per day.{' '}
-              {lastRefreshHint}
-            </p>
-            {feed.hasJobs && (
-              <p className="text-sm text-muted-foreground">
-                Sorted by match. {feed.unscored > 0 && `${feed.unscored} unscored.`}
-              </p>
-            )}
-          </div>
-          <RefreshFeedButton hasJobs={feed.hasJobs} unscored={feed.unscored} />
-        </div>
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-10 sm:py-12">
+        <SectionHeader
+          eyebrow="Verified feed"
+          title={
+            feed.hasJobs
+              ? `${feed.jobs.length} ${feed.jobs.length === 1 ? 'role' : 'roles'}${
+                  todayHigh > 0 ? ` · ${todayHigh} strong` : ''
+                }`
+              : 'Your feed'
+          }
+          description={
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground/70">
+                Feed updates once every 24h — auto cron at 06:00 IST + you can pull manually once
+                per day. {lastRefreshHint}
+              </span>
+              {feed.hasJobs && (
+                <span>
+                  Sorted by match.{' '}
+                  {feed.unscored > 0 && (
+                    <span className="text-foreground/80">{feed.unscored} unscored.</span>
+                  )}
+                </span>
+              )}
+            </div>
+          }
+          actions={<RefreshFeedButton hasJobs={feed.hasJobs} unscored={feed.unscored} />}
+        />
 
-        {!feed.hasJobs && (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-card/30 p-10 text-center backdrop-blur">
-            <p className="text-sm text-muted-foreground">
-              No jobs yet. The daily cron will pull and score the latest postings overnight.
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground/60">
-              In the meantime, paste any JD URL from <span className="text-foreground">Applications</span>{' '}
-              to add and score it on demand.
-            </p>
-          </div>
-        )}
-
-        {feed.hasJobs && (
-          <div className="flex flex-col gap-3">
-            {feed.jobs.map((job) => (
-              <JobCard key={job.id} job={job} />
-            ))}
-          </div>
+        {!feed.hasJobs ? (
+          <EmptyState
+            icon={Briefcase}
+            title="No jobs yet"
+            description="The daily cron will pull and score the latest postings overnight. In the meantime, paste any JD URL from Applications to add and score it on demand."
+          />
+        ) : (
+          <JobsFeed jobs={feed.jobs} />
         )}
       </main>
     </div>

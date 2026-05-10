@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookmarkPlus, Check, Loader2 } from 'lucide-react';
+import { BookmarkCheck, BookmarkPlus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { saveJob } from '@/lib/applications/actions';
@@ -43,12 +43,15 @@ export function SaveJobButton({ jobId, initialApplicationId }: Props) {
           if (!result.alreadySaved) toast.success('Saved to your applications');
         });
       }}
-      className={cn('gap-1.5', isSaved && 'text-foreground')}
+      className={cn(
+        'gap-1.5 transition-all hover:-translate-y-px',
+        isSaved && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15',
+      )}
     >
       {pending ? (
         <Loader2 className="size-3.5 animate-spin" />
       ) : isSaved ? (
-        <Check className="size-3.5" strokeWidth={2} />
+        <BookmarkCheck className="size-3.5" strokeWidth={1.8} />
       ) : (
         <BookmarkPlus className="size-3.5" strokeWidth={1.5} />
       )}
