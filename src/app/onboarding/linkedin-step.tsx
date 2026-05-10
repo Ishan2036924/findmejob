@@ -3,7 +3,9 @@
 import { useCallback, useRef, useState, useTransition } from 'react';
 import {
   AlertCircle,
+  ArrowRight,
   CheckCircle2,
+  Info,
   Loader2,
   Lock,
   SkipForward,
@@ -35,23 +37,26 @@ export function LinkedinStep({
   return (
     <div className="flex flex-col gap-6">
       <Header
-        eyebrow="Your LinkedIn"
-        title="Add LinkedIn context."
-        subtitle="LinkedIn doesn't allow apps to fetch profiles directly — pick one of the two quick options below, or skip."
+        eyebrow="Step 3 · LinkedIn"
+        title="Add your LinkedIn (optional)"
+        subtitle="Helps us catch experience your resume might miss. Skip if your resume is already comprehensive."
       />
 
-      <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4 text-xs leading-relaxed text-amber-200/80">
-        <Lock className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} />
+      <div className="flex items-start gap-3 rounded-xl border border-indigo-400/20 bg-indigo-500/[0.04] p-3.5 text-xs leading-relaxed text-indigo-100/80">
+        <Lock
+          className="mt-0.5 size-3.5 shrink-0 text-indigo-300/80"
+          strokeWidth={1.5}
+        />
         <span>
-          LinkedIn&apos;s Terms of Service prohibit third-party apps from
-          fetching profiles. Both options below stay private to your account
-          and feed the same parser as your resume.
+          LinkedIn doesn&apos;t allow third-party fetching, so we offer two
+          quick options below. Either way, your data stays private to your
+          account.
         </span>
       </div>
 
       <Tabs value={mode} onValueChange={(v) => setMode((v as Mode) ?? 'upload')}>
         <TabsList>
-          <TabsTrigger value="upload">Upload PDF export</TabsTrigger>
+          <TabsTrigger value="upload">Upload PDF</TabsTrigger>
           <TabsTrigger value="paste">Paste text</TabsTrigger>
           <TabsTrigger value="skip">Skip for now</TabsTrigger>
         </TabsList>
@@ -68,6 +73,64 @@ export function LinkedinStep({
           <SkipTab onAdvance={onAdvance} />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+const EXPORT_STEPS = [
+  {
+    n: 1,
+    title: 'Open Settings',
+    body: 'LinkedIn → click your photo → Settings & Privacy.',
+  },
+  {
+    n: 2,
+    title: 'Data Privacy',
+    body: 'Click "Get a copy of your data".',
+  },
+  {
+    n: 3,
+    title: 'Pick Profile',
+    body: '"Want something in particular?" → check Profile → Request archive.',
+  },
+  {
+    n: 4,
+    title: 'Drop the PDF',
+    body: 'LinkedIn emails the file in ~10 minutes. Drop it below.',
+  },
+];
+
+function ExportInstructions() {
+  return (
+    <div className="rounded-xl border border-white/10 bg-card/40 p-4">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+        <Info className="size-3.5" strokeWidth={1.5} />
+        How to export your LinkedIn profile
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {EXPORT_STEPS.map((step, i) => (
+          <div key={step.n} className="flex items-start gap-2.5">
+            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border border-indigo-400/30 bg-indigo-500/10 text-[11px] font-semibold text-indigo-200">
+              {step.n}
+            </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[12px] font-medium leading-tight tracking-tight text-foreground">
+                {step.title}
+              </span>
+              <span className="text-[11px] leading-snug text-muted-foreground">
+                {step.body}
+              </span>
+            </div>
+            {i < EXPORT_STEPS.length - 1 ? (
+              <ArrowRight
+                aria-hidden
+                className="ml-auto mt-1 hidden size-3 shrink-0 text-muted-foreground/40 sm:block"
+                strokeWidth={1.5}
+              />
+            ) : null}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -147,28 +210,7 @@ function UploadTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-white/10 bg-card/40 p-4">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground">
-          How to export your LinkedIn profile
-        </div>
-        <ol className="mt-3 flex flex-col gap-2 text-xs leading-relaxed text-muted-foreground">
-          <li>
-            <span className="text-foreground">1.</span> Open LinkedIn → click your photo →
-            Settings &amp; Privacy.
-          </li>
-          <li>
-            <span className="text-foreground">2.</span> Data Privacy → Get a copy of your data.
-          </li>
-          <li>
-            <span className="text-foreground">3.</span> Pick &ldquo;Want something in
-            particular?&rdquo; → check &ldquo;Profile&rdquo; → Request archive.
-          </li>
-          <li>
-            <span className="text-foreground">4.</span> LinkedIn emails the file in ~10 minutes.
-            Drop the PDF below.
-          </li>
-        </ol>
-      </div>
+      <ExportInstructions />
 
       <label
         onDragOver={(e) => {
@@ -180,7 +222,7 @@ function UploadTab({
         className={cn(
           'group relative flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-card/40 px-6 py-10 text-center transition-all',
           dragOver
-            ? 'border-white/40 bg-white/[0.06]'
+            ? 'border-indigo-400/60 bg-indigo-500/[0.06]'
             : 'border-white/15 hover:border-white/25 hover:bg-card/60',
           parsing && 'pointer-events-none opacity-70',
         )}
@@ -192,7 +234,14 @@ function UploadTab({
           hidden
           onChange={onPick}
         />
-        <div className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5">
+        <div
+          className={cn(
+            'flex size-10 items-center justify-center rounded-full border bg-white/5',
+            parsed
+              ? 'border-emerald-400/40 bg-emerald-500/10'
+              : 'border-white/10',
+          )}
+        >
           {parsing ? (
             <Loader2 className="size-4 animate-spin" strokeWidth={1.5} />
           ) : parsed ? (
@@ -226,15 +275,22 @@ function UploadTab({
 
       {parsed && (
         <div className="flex justify-end">
-          <Button onClick={save} disabled={saving} size="sm" className="gap-2">
+          <Button onClick={save} disabled={saving} size="sm">
             {saving ? (
               <>
-                <Loader2 className="size-3.5 animate-spin" />
+                <Loader2
+                  className="size-3.5 animate-spin"
+                  data-icon="inline-start"
+                />
                 Merging…
               </>
             ) : (
               <>
-                <CheckCircle2 className="size-3.5" strokeWidth={1.5} />
+                <CheckCircle2
+                  className="size-3.5"
+                  strokeWidth={1.5}
+                  data-icon="inline-start"
+                />
                 Merge &amp; continue
               </>
             )}
@@ -276,14 +332,14 @@ function PasteTab({
     <div className="flex flex-col gap-3">
       <p className="text-xs leading-relaxed text-muted-foreground">
         On LinkedIn, copy the &ldquo;About&rdquo;, &ldquo;Experience&rdquo;, and
-        &ldquo;Skills&rdquo; sections of your profile and paste below. We extract structure
-        from this just like the resume.
+        &ldquo;Skills&rdquo; sections of your profile and paste below. We
+        extract structure from this just like the resume.
       </p>
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Paste your LinkedIn About + Experience + Skills sections here."
-        className="min-h-[280px] resize-y font-mono text-xs leading-relaxed"
+        className="min-h-[260px] resize-y font-mono text-xs leading-relaxed"
       />
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
@@ -299,16 +355,22 @@ function PasteTab({
           onClick={save}
           disabled={saving || text.trim().length < 200}
           size="sm"
-          className="gap-2"
         >
           {saving ? (
             <>
-              <Loader2 className="size-3.5 animate-spin" />
+              <Loader2
+                className="size-3.5 animate-spin"
+                data-icon="inline-start"
+              />
               Parsing &amp; merging…
             </>
           ) : (
             <>
-              <CheckCircle2 className="size-3.5" strokeWidth={1.5} />
+              <CheckCircle2
+                className="size-3.5"
+                strokeWidth={1.5}
+                data-icon="inline-start"
+              />
               Merge &amp; continue
             </>
           )}
@@ -320,15 +382,23 @@ function PasteTab({
 
 function SkipTab({ onAdvance }: { onAdvance: () => void }) {
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-card/40 p-6">
+    <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-card/40 p-5">
       <p className="text-sm leading-relaxed text-muted-foreground">
-        You can add LinkedIn later from your dashboard. Without it, the assessment
-        will rely only on your resume — fine, but you may miss credit for projects or
-        roles you only describe on LinkedIn.
+        That&apos;s fine — your resume alone is enough to start. You can add
+        LinkedIn anytime later from{' '}
+        <code className="rounded bg-white/5 px-1 py-0.5 font-mono text-[11px]">
+          /settings
+        </code>
+        . Without it, the assessment may miss credit for projects or roles you
+        only describe on LinkedIn.
       </p>
       <div className="flex justify-end">
-        <Button onClick={onAdvance} variant="outline" size="sm" className="gap-2">
-          <SkipForward className="size-3.5" strokeWidth={1.5} />
+        <Button onClick={onAdvance} variant="outline" size="sm">
+          <SkipForward
+            className="size-3.5"
+            strokeWidth={1.5}
+            data-icon="inline-start"
+          />
           Skip for now
         </Button>
       </div>
@@ -347,11 +417,13 @@ function Header({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs uppercase tracking-wider text-muted-foreground">{eyebrow}</span>
+      <span className="text-xs uppercase tracking-wider text-indigo-300/80">
+        {eyebrow}
+      </span>
       <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
         {title}
       </h1>
-      <p className="max-w-lg text-pretty text-sm leading-relaxed text-muted-foreground">
+      <p className="max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground">
         {subtitle}
       </p>
     </div>

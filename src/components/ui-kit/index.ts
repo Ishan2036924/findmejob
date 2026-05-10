@@ -14,3 +14,8 @@ export {
   type StatusBadgeProps,
   type ApplicationStatus as StatusBadgeStatus,
 } from './status-badge';
+export {
+  StepProgress,
+  type StepProgressProps,
+  type StepProgressStep,
+} from './step-progress';
