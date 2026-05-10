@@ -14,77 +14,80 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 
 ## Last session
 
-**Date:** 2026-04-29
-**Phase:** Slice 1 build — **Steps 1–5 shipped, Step 6 in flight (expanded scope).**
+**Date:** 2026-05-10
+**Phase:** Phase 7.3 synth eval ran. **🟢 GO — beta-ready.**
 
-**Live state:** assessment, onboarding, feed, match scoring all working end-to-end on https://findmejob-nu.vercel.app. BYOK direct providers (Anthropic + OpenAI) charging user accounts. Auto-deploy unblocked. Autonomous Vercel logs + Puppeteer snap workflow active.
+**Headline numbers (Phase 7.3, 4 synth users, 76-param rubric):**
+- Overall: **4.14/5** (Phase 7.1 was 2.90 — +1.24 jump)
+- Tailor pipeline v3: **4.96/5** (NEW; verifier 95/100 across all 4 users; 10-12 edits applied each; zero retries needed)
+- Chat agent (master-agent UX): **4.00/5** (was 3.45; passed 3.50 GO gate with margin)
+- Off-topic refusal: **5/5** (was 1/5 in Phase 7.1)
+- All 3 critical safety probes: 5/5 (violence, SSN/passport, credit card all blocked correctly)
 
-**Step 6 reshape (this session):**
-- Original 6a (LaTeX PDF) expanded to **6c → 6b → 6a** sequence:
-  - **6c (this turn):** applications log + save-from-feed + per-job dashboard shell at /applications/[id]
-  - **6b (this turn):** paste-a-job intake (URL fetch with mini extraction, OR JD text paste with mini parse)
-  - **6a (next focused turn):** LaTeX/Tectonic compile inside Vercel Sandbox + PDF storage in Supabase
-- Slice 2 reframed: per-job dashboard with **on-demand artifact buttons** (cover letter, brief, interview Qs, outreach, practice mode), not eager bundles. Saves tokens on artifacts users don't ask for.
-- Application tracker absorbed into Slice 2 shell, not a separate Slice 3 feature.
+**This session (2026-05-09 → 2026-05-10) shipped:**
 
-**Schema additions (this turn):**
-- New tables: `applications`, `practice_sessions`.
-- New columns: `generations.application_id` (nullable fk), `jobs.created_by` (nullable fk).
-- New enum value: `job_source.user_pasted`.
-- Updated RLS: jobs SELECT becomes `created_by IS NULL OR created_by = auth.uid()`; new INSERT policy on jobs for user-pasted entries.
+**Phase 7.2 (earlier in session, deployed):**
+- Feed region tagging — `jobs.region` enum + `inferRegion()` helper + backfill migration; cron tags every new job
+- Feed query filtered by `userRegion(target_location)`; Delhi NCR users see India + remote only
+- Restored manual refresh button (was deleted) — rate-limited 1/day via `checkRefreshRateLimit`
+- Tailor v2 retry-on-empty + telemetry + delta header on resume detail page
+- System prompt cluster: off-topic refusal + confirm-before-write tightening + assessment cache logging + resume cap + company-brief anti-hallucination
 
-**What's next:**
-- Step 6a (LaTeX/Tectonic/Vercel Sandbox PDF) as the next focused turn.
-- Then Slice 2 begins: per-job artifact buttons + practice mode.
+**Phase 7.3 (this turn, on disk, NOT yet pushed):**
+- Tailor v3 multi-step pipeline (`src/lib/ai/agents/{jd-analyzer,tailor-verifier}.ts`): mini analyzer extracts must_haves/vocabulary/red_flags → Sonnet tailor with analysis as ground truth → mini verifier scores 0-100 with must_haves_addressed/missing/hallucination_risks. Auto-retry once if score<70.
+- 5 new chat tools (master agent: 19 → 24 tools): `update_profile_targets`, `list_feed_jobs`, `save_feed_job`, `parse_attachment_as_resume`, `commit_resume_replacement`. The last two require explicit "yes" confirmation per system prompt.
+- Synth eval refresh: 4th synth user (User D — entry-level Data Analyst, Bangalore); per-scenario `assembled_messages` capture; per-user tailor pipeline trace; new "Tailor pipeline (v3)" rubric category (5 params; 3 deterministic, 2 LLM-graded).
+- New eval output `scripts/synth/TRACE.md` — human-readable side-by-side: chat scenario per user (assembled context → tools → response) + tailor pipeline per user (analyzer → Sonnet edits → verifier scoring).
 
-**Production state:**
-- App: https://findmejob-nu.vercel.app (HTTP 200, Next.js scaffold rendering)
-- GitHub: https://github.com/Ishan2036624/findmejob (private, main branch, Vercel GH App connected)
-- Vercel project: `ishan2036924s-projects/findmejob` (`prj_DPBwJ33VqJqPBgYl60bEhbeP8e16`)
-- First production deploy: `dpl_2Cy8QFymKzheyKwJrmhCiVaCcX3y`, READY in 42s
+**Eval files written (2026-05-10):**
+- `scripts/synth/SUMMARY.md` — exec summary, GO verdict
+- `scripts/synth/REPORT.md` — full 76-param scorecard
+- `scripts/synth/TRACE.md` — backend visibility per the user's "what you saw" ask
 
-**Stack delivered:**
-- Next.js 16.2.4 (App Router, Turbopack), React 19.2.4, Tailwind 4.2.4, TS strict.
-- AI SDK 6.0.168 + `@ai-sdk/gateway` 3.0.104 (workload→model map at `src/lib/ai/models.ts`).
-- Supabase SSR 0.10.2 + supabase-js 2.104.1 (browser + server clients + auth-refresh middleware).
-- `vercel.ts` typed config via `@vercel/config` 0.2.1.
-- GH Actions CI (`.github/workflows/ci.yml`) — lint + typecheck on PR + push-to-main.
-- Vercel git integration → auto preview deploys on PR, auto prod deploys on main push.
+**2 non-blocking issues for post-beta polish:**
+1. Assessment latency on User A (114s, 1/4 users; others 44-58s). Sonnet just slow on certain resume shapes. Not urgent.
+2. `failure_modes_documented` (1/5) — pure docs gap, not behavior. System blocks correctly.
 
-**Env state:**
-- Vercel: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set on Production + Development. Preview pending user dashboard action (CLI v52 regression on preview-without-branch).
-- Local: `.env.local` populated by `vercel env pull` (Supabase URL + anon + Vercel OIDC token for AI Gateway local dev).
-- Pending user action: `vercel env add SUPABASE_SERVICE_ROLE_KEY` interactively (secret never goes through chat transcript).
+**Architecture decisions locked this session:**
+- Multi-step tailor (Reflexion-pattern) on Sonnet ≈ Opus quality at ~⅓ cost. User can't afford Opus; this is the answer.
+- Tailor verifier on mini, not Sonnet. Verification is constrained scoring; mini sufficient. Revisit if scores correlate poorly with quality.
+- Credit/billing system explicitly DEFERRED this turn (per user call). Daily count caps remain the sole cost-control mechanism. Existing token columns in `chat_messages` + `generations` are reconstructable per-user spend data when ready to monetize.
+- `update_profile` (full overwrite) intentionally NOT added as a tool — only `update_profile_targets` (3 fields). Resume replacement gates through the explicit two-step parse-then-confirm flow to prevent accidental overwrites.
 
-**Local toolchain set up:**
-- npm prefix → `~/.npm-global` (PATH appended to `~/.zshrc`).
-- Vercel CLI 52.0.0, pnpm 10.33.2 installed globally there.
-- gh CLI authenticated with workflow scope.
-- Vercel CLI logged in as `ishan2036924`.
-- Vercel MCP authorized (`list_teams` works; `get_project` returns 403 on personal scope — known quirk).
+**Synth users in DB:** `synth-{a,b,c,d}@findmejob.test` (password `synth-password-2026`). Run `pnpm tsx scripts/synth/cleanup.ts` when ready.
 
-**What's next:**
-- User actions in Supabase dashboard:
-  1. Authentication → URL Configuration → add to "Redirect URLs": `http://localhost:3000/auth/callback`, `https://findmejob-nu.vercel.app/auth/callback`. Required or magic links won't redirect properly.
-  2. Authentication → Providers → Email is on by default (good). Enable Google if you want that path working — needs Google OAuth client setup separately.
-- Slice 1 next steps:
-  1. PDF resume parser (server action wrapping `unpdf` + post-process to `resume_json`).
-  2. Onboarding UI after sign-in (target role family + seniority + paste-or-upload-resume).
-  3. Wire `runAssessment()` into a server action; render assessment UI.
-  4. JSearch ingest cron (`/api/cron/ingest-jobs`).
-  5. Wire `runMatchScore()` (lazy on feed view).
-  6. Wire `runTailor()` + LaTeX template + Tectonic-in-Sandbox compile.
-- Cosmetic deferred: rename `src/middleware.ts` → `src/proxy.ts` per Next.js 16 convention.
+**What's next when user resumes:**
+1. Push the Phase 7.3 commit (tailor v3 + 5 tools + synth refresh).
+2. Read `scripts/synth/TRACE.md` to see the backend per-step view.
+3. Decide closed-beta cohort recruitment (5-10 users to start).
+4. Cleanup synth users (optional).
+5. Start Slice 4 (roadmap engine + portfolio analysis) if any features remain pre-beta. Most of original Slice 4 was absorbed into Slice 2 already (multi-source ingest, analytics).
+
+**Files touched this session (Phase 7.2 + 7.3 combined):**
+
+Phase 7.2 (already deployed):
+- `supabase/migrations/20260506120000_jobs_region.sql` (NEW)
+- `src/lib/jobs/region.ts` (NEW)
+- `src/lib/jobs/{curated-companies,jsearch,ingest,queries,actions,score-all-users}.ts`, `src/lib/jobs/ats/{greenhouse,lever,ashby}.ts`, `src/lib/jobs/mock-jobs.ts`
+- `src/app/(app)/jobs/{page,refresh-feed-button}.tsx` (button restored)
+- `src/lib/ai/agents/{tailor,assessment,company-brief,career}-agent.ts`, prompt files
+- `src/lib/resume/{actions,queries}.ts`, `src/app/(app)/applications/[id]/resume/[resumeId]/page.tsx`
+
+Phase 7.3 (on disk, awaiting push):
+- `src/lib/ai/agents/{jd-analyzer,tailor-verifier,tailor-agent}.ts`
+- `src/lib/ai/prompts/system/{jd-analyzer,tailor-verifier,tailor,career-agent}.system.ts`
+- `src/lib/ai/schemas/{jd-analysis,tailor-verification}.ts`
+- `src/lib/ai/tools/{update-profile-targets,list-feed-jobs,save-feed-job,parse-attachment-as-resume,commit-resume-replacement}.ts`
+- `src/lib/ai/agents/career-agent.ts` (24 tools registered)
+- `src/lib/resume/{actions,queries}.ts` (verifier persistence)
+- `src/app/(app)/applications/[id]/resume/[resumeId]/page.tsx` (verifier badge + must-haves UI)
+- `scripts/synth/{profiles,run,grade}.ts` (4th user + traces + new rubric + TRACE.md)
 
 **Open items / user todos:**
-- Add `SUPABASE_SERVICE_ROLE_KEY` via `vercel env add` (interactive).
-- Copy URL + anon key to Preview environment via Vercel dashboard.
-- Real product name (still using "findmejob" / "CareerForge" placeholders).
-
-**Files touched this session:**
-- Phase 0/1: CLAUDE.md, .claude/NOTES.md, .claude/LOG.md, .gitignore, README.md, AGENTS.md.
-- Phase 1.5 Stage A: full Next.js scaffold + src/instrumentation.ts, src/middleware.ts, src/lib/ai/models.ts, src/lib/supabase/{client,server,middleware}.ts, vercel.ts, .env.example, .github/workflows/ci.yml, package.json scripts.
-- Phase 1.5 Stage B/C: .vercel/project.json (gitignored), .env.local (gitignored), Vercel env vars on Production + Development.
+- Push Phase 7.3 commit.
+- Read `scripts/synth/TRACE.md`.
+- Run `pnpm tsx scripts/synth/cleanup.ts` when ready.
+- Recruit closed-beta cohort.
 
 ---
 
@@ -141,3 +144,17 @@ Append-only. Newest at the bottom. The `## Last session` block at the top is ove
 - `[2026-04-29] [DECISION]` Orchestrator role removed from MODELS map. Slice 2 dropped multi-agent orchestration in favor of lazy per-button artifact generation; no orchestrator code path exists.
 - `[2026-04-29] [BUILD]` `JSEARCH_API_KEY` provisioned in Vercel Production + Development envs and synced to local `.env.local`. Preview env pending dashboard add (CLI v52 regression on `vercel env add ... preview` blocks the all-branches case). Free Basic tier on RapidAPI (200 req/month, hard limit) — sufficient for early beta; upgrade to Pro (~$10/mo, 10k req/month) when Slice 4 daily cron starts hitting the cap.
 - `[2026-04-29] [DECISION]` Slice 2 sequencing locked: 5 steps before beta opens (artifacts → multi-source → memory+chat foundation → career agent + tools → analytics + cost guardrails). User chose "ship everything before beta" over my "open beta on Slice 1, sequence by feedback" recommendation. Risk noted: 6–8 weeks no user feedback. Proceeding.
+
+### 2026-05-06 → 2026-05-10 (Phase 7.2 + 7.3)
+
+- `[2026-05-06] [BUG]` User reported Delhi NCR feed showing California jobs. Root cause via Explore audit: `src/lib/jobs/queries.ts` `getFeed()` had zero `WHERE` on location; cron ingests US queries unconditionally; curated companies are 21 US / 10 India; match scoring runs against all global jobs.
+- `[2026-05-06] [BUG]` User reported tailored resume looks identical to input. Root cause: `tailor.system.ts` was stub-quality (`v1.2026-04-27.stub`), overly conservative prompt → agent returns `edit_ops: []` → `applyEditOps(base, [])` returns base unchanged.
+- `[2026-05-06] [BUILD]` Phase 7.2 shipped: `jobs.region` enum + `inferRegion()` helper + backfill migration + `userRegion()` filter on getFeed + score-all-users + restored daily refresh button (rate-limited 1/day) + tailor v2 retry-on-empty + delta-display UI.
+- `[2026-05-06] [BUILD]` System prompt cluster updated: career-agent off-topic rule 14 + confirm-before-write tightened with binary imperative heuristic + assessment cache logging + resume cap (30k char serialized) + company-brief grounding hard rules.
+- `[2026-05-09] [DECISION]` Credit/billing system DEFERRED. User explicitly chose "skip credit system entirely for now" over the proposed telemetry-only soft-cap option. Existing daily count caps remain the only cost-control mechanism.
+- `[2026-05-09] [BUILD]` Phase 7.3 Fix 1 — Tailor v3 multi-step pipeline. New: `jd-analyzer.ts` (mini), `tailor-verifier.ts` (mini), `tailor-agent.ts` orchestrates 3-step (analyzer → Sonnet → verifier) + auto-retry once on score<70. New schemas `jd-analysis` and `tailor-verification`. Bumped `TAILOR_SYSTEM_VERSION = 'v3.tailor.2026-05-09'` with analysis-aware context. Cost: ~$0.05-0.10 per tailor (was $0.06 single Sonnet). Quality: Reflexion-pattern recovers near-Opus quality on Sonnet budget.
+- `[2026-05-09] [BUILD]` Phase 7.3 Fix 2 — Agentic tool gaps. 5 new chat tools added to master agent: `update_profile_targets`, `list_feed_jobs`, `save_feed_job`, `parse_attachment_as_resume`, `commit_resume_replacement`. Total tool count 19 → 24. Resume replacement explicitly two-step (parse → user confirm "yes" → commit) to prevent accidental overwrites.
+- `[2026-05-09] [BUILD]` Phase 7.3 Fix 3 — Synth eval refresh. Added User D (entry-level Data Analyst, Bangalore). Per-scenario `assembled_messages` capture (truncated to 1500 chars per message). New "Tailor pipeline (v3)" rubric category with 5 params (3 deterministic from verifier output, 2 LLM-graded by Sonnet). New `scripts/synth/TRACE.md` output: human-readable side-by-side of one chat scenario per user + one full tailor pipeline trace per user.
+- `[2026-05-10] [BUILD]` Phase 7.3 synth eval ran. Verdict: **🟢 GO — beta-ready.** Overall 4.14/5 (Phase 7.1: 2.90, +1.24 jump). Tailor v3 4.96/5 (verifier 95/100 across all 4 users; 10-12 edits each; zero retries needed; only 1 must-have missing across 29 total). Chat agent 4.00/5 (was 3.45). Off-topic refusal 5/5 (was 1/5). All 3 critical safety probes 5/5.
+- `[2026-05-10] [DECISION]` Beta-readiness call: GO. Open closed beta. 2 remaining issues are non-blocking (User A assessment latency 114s, failure-modes docs gap). Recommend recruiting 5-10 closed-beta users; capture outcomes for post-beta credit/billing decision.
+- `[2026-05-10] [NOTE]` Phase 7.3 changes still on disk, NOT yet pushed. User pushes manually per project rule.

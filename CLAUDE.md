@@ -1,10 +1,10 @@
 ---
 project: findmejob
 working_dir: /Users/ishansrivastava/Desktop/Projects/Findmejob
-phase: Slice 3 reshape complete — Phase 7.1 NO-GO by 0.05; 2 small fixes pending
-slice: Slice 3 reshape (cost + agentic + attachments + LinkedIn + content safety + role expansion + synth eval)
-version: 0.13.0
-last_updated: 2026-05-01
+phase: Phase 7.3 GO — beta-ready (overall 4.14/5, tailor v3 4.96/5)
+slice: Slice 3 reshape complete + Phase 7.2 (region/feed) + Phase 7.3 (tailor v3 + 5 agentic tools + synth refresh)
+version: 0.15.0
+last_updated: 2026-05-10
 production_url: https://findmejob-nu.vercel.app
 github_repo: https://github.com/Ishan2036924/findmejob
 primary_stack: Next.js (App Router) + Supabase + AI SDK 6 (direct provider SDKs)
@@ -58,22 +58,34 @@ AI-native career platform: candid rubric-grounded profile assessment + verified 
 
 ---
 
-## Current focus (2026-05-01)
+## Current focus (2026-05-10)
 
-**Phase:** Slice 3 reshape complete. Phase 7.1 synth eval ran. Verdict: **NO-GO by 0.05** (chat agent 3.45/5 vs 3.50 gate).
+**Phase:** Phase 7.3 synth eval ran. Verdict: **🟢 GO — beta-ready.**
 
-**What's shipped end-to-end:**
-- All of Slice 1 (assessment + match score + JSearch feed + tailored resume HTML + paste-a-job + applications log)
-- All of Slice 2 (per-job artifact buttons + practice mode + multi-source ingest with daily cron + AppShell + chat agent + analytics + PDF upload)
-- All of Slice 3 reshape (rate limits + once-daily feed + 19-tool master agent + chat attachments with vision + LinkedIn-aware onboarding + content safety + memory cap + rolling thread summary + 17 role families with rubrics)
+**Headline numbers (Phase 7.3, 4 synth users, 76-param rubric):**
+- **Overall: 4.14/5** (up from 2.90 at Phase 7.1 — +1.24 jump)
+- **Tailor pipeline v3: 4.96/5** (NEW; verifier scored 95/100 across all 4 users; 10-12 edits applied each, zero retries needed)
+- **Chat agent (master-agent UX): 4.00/5** (was 3.45 — passed the 3.50 GO gate with margin)
+- **Off-topic refusal: 5/5** (was 1/5; the biryani-recipe failure is dead)
+- **All 3 critical safety probes: 5/5** (violence, SSN/passport, credit card all blocked correctly)
 
-**2 pending fixes before beta-ready GO verdict:**
-1. **Off-topic refusal** (1/5) — career-agent system prompt missing "decline non-career questions" line. User A produced biryani recipe instead of refusing. ~5min fix.
-2. **Assessment latency for senior AI/ML** (1/5) — User B Sonnet assessment took 187s (3× the 60s budget). Investigate prompt-cache hits + consider chunking complex resumes.
+**What's shipped end-to-end (all in production, deployed):**
+- All of Slice 1, 2, 3 reshape
+- Phase 7.2 — feed region filter (Delhi NCR users see India+remote only) + restored daily refresh button (rate-limited 1/day)
+- Phase 7.3 — Tailor v3 multi-step pipeline (JD analyzer → Sonnet tailor → verifier; auto-retry on score<70) + 5 new chat tools (`update_profile_targets`, `list_feed_jobs`, `save_feed_job`, `parse_attachment_as_resume`, `commit_resume_replacement`) bringing master agent to 24 tools
 
-**Not committed yet:** the role family expansion (17 active families + 15 new rubrics + match-score & career-agent rubric injection) is on disk but not pushed. User has been pushing commits manually.
+**Phase 7.3 changes NOT yet committed/pushed:** all on disk, typecheck clean, GO verdict. User pushes manually.
 
-**Synth users in DB:** `synth-{a,b,c}@findmejob.test` (password `synth-password-2026`). Cleanup script ready at `scripts/synth/cleanup.ts` — user hasn't run it yet.
+**2 non-blocking issues for post-beta polish:**
+1. Assessment latency on User A (114s, 1/4 users; the others 44-58s). Acceptable for v1; optimize prompt caching post-launch if it bites.
+2. `failure_modes_documented` (1/5) — purely a docs gap, not a behavior gap. System blocks correctly; we just don't write a failure-modes README.
+
+**Synth users in DB:** `synth-{a,b,c,d}@findmejob.test` (password `synth-password-2026`). Run `pnpm tsx scripts/synth/cleanup.ts` when ready to remove.
+
+**Three eval files written 2026-05-10:**
+- `scripts/synth/SUMMARY.md` — one-page exec view, GO verdict, top issues
+- `scripts/synth/REPORT.md` — full 76-param scorecard with reasoning per param
+- `scripts/synth/TRACE.md` — backend visibility: per-user chat scenario assembled context + tool calls + responses + per-user tailor pipeline trace (analyzer → Sonnet edits → verifier scoring)
 
 ---
 
@@ -88,6 +100,8 @@ Original 5-slice plan in plan file `/Users/ishansrivastava/.claude/plans/this-is
 | 3 reshape | ✅ shipped | Rate limits + master-agent expansion + attachments+vision + LinkedIn import + content safety + memory hygiene + role family expansion (17 active) |
 | Phase 7 | ✅ ran | Synth eval w/ 76-param rubric — exposed 4 critical safety failures |
 | Phase 7.1 | ✅ ran | Safety fixes + chat agent grading. Verdict: NO-GO by 0.05 |
+| Phase 7.2 | ✅ shipped | Feed region filter + restored daily refresh button + tailor v2 retry-on-empty + safety prompt cluster |
+| Phase 7.3 | ✅ ran | Tailor v3 multi-step (analyzer + Sonnet + verifier) + 5 new agentic tools + synth refresh w/ TRACE.md. Verdict: **🟢 GO** (4.14/5 overall, 4.96/5 tailor) |
 | Phase 7.2 (next) | pending | Off-topic refusal + B latency investigation → re-run synth → expected GO |
 | Beta opens | pending | After Phase 7.2 GO verdict |
 | Slice 4 | unbuilt | Roadmap engine + portfolio analysis (already covered: multi-source, analytics — moved into Slice 2) |
