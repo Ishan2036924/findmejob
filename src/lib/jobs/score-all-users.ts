@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { runMatchScore } from '@/lib/ai/agents/match-score-agent';
 import type { Profile, RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
 import { userRegion } from './region';
+import { familiesForUser } from './role-adjacency';
 
 export type ScoreAllResult = {
   usersScored: number;
@@ -73,9 +74,10 @@ export async function scoreAllUsers(): Promise<ScoreAllResult> {
       .eq('profile_id', profile.id);
     const scoredIds = new Set(existingScores?.map((s) => s.job_id) ?? []);
 
-    // Same region gate as getFeed — never spend mini calls scoring jobs the
-    // user can't see anyway.
+    // Same region + role-family gate as getFeed — never spend mini calls
+    // scoring jobs the user can't see anyway.
     const region = userRegion(profile.target_location);
+    const families = familiesForUser(profile.target_role_family as RoleFamily | null);
     let jobsQuery = admin
       .from('jobs')
       .select('id, title, company, description')
@@ -83,6 +85,9 @@ export async function scoreAllUsers(): Promise<ScoreAllResult> {
       .limit(PER_USER_JOB_CAP * 2); // overfetch then filter; cheaper than left-join
     if (region !== 'other') {
       jobsQuery = jobsQuery.in('region', [region, 'remote']);
+    }
+    if (families.length > 0) {
+      jobsQuery = jobsQuery.in('role_family', families);
     }
     const { data: jobs } = await jobsQuery;
 

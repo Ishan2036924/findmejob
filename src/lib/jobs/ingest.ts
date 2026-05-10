@@ -5,6 +5,9 @@ import { fetchGreenhouseJobs, fetchLeverJobs, fetchAshbyJobs } from './ats';
 import { CURATED_COMPANIES } from './curated-companies';
 import type { RawJob } from './mock-jobs';
 import { inferRegion } from './region';
+import { classifyRoleFamily } from '@/lib/ai/agents/role-family-classifier-agent';
+
+const CLASSIFY_BATCH_SIZE = 8;
 
 export type IngestResult = {
   totalFetched: number;
@@ -87,6 +90,31 @@ export async function ingestJobs(opts?: {
   await runBatch(lever, (c) => fetchLeverJobs(c.slug, c.name, c.hq_region), 'lever');
   await runBatch(ashby, (c) => fetchAshbyJobs(c.slug, c.name, c.hq_region), 'ashby');
 
+  // 2.5 Classify role_family for each job before upsert. Mini call ~$0.0003/job.
+  // Skips classification if already populated (e.g., future caller pre-filled).
+  // Filtering at ingest means the feed + scorer can drop off-family jobs cheaply.
+  const toClassify = allJobs.filter((j) => !j.role_family);
+  if (toClassify.length > 0) {
+    console.info('[ingest] classifying role_family for', toClassify.length, 'jobs');
+    for (let i = 0; i < toClassify.length; i += CLASSIFY_BATCH_SIZE) {
+      const batch = toClassify.slice(i, i + CLASSIFY_BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map((j) =>
+          classifyRoleFamily({
+            title: j.title,
+            company: j.company,
+            description: j.description,
+          })
+            .then((r) => (r.output.confidence < 0.5 ? ('other' as const) : r.output.role_family))
+            .catch(() => 'other' as const),
+        ),
+      );
+      batch.forEach((j, idx) => {
+        j.role_family = results[idx];
+      });
+    }
+  }
+
   // 3. Upsert (service-role, bypasses RLS — jobs are public-read)
   let upserted = 0;
   if (allJobs.length > 0) {
@@ -103,6 +131,7 @@ export async function ingestJobs(opts?: {
       // Belt + suspenders: every fetcher sets region, but if a future source
       // forgets we still infer at the upsert site rather than landing nulls.
       region: j.region ?? inferRegion(j.location),
+      role_family: j.role_family ?? null,
       last_seen_at: new Date().toISOString(),
     }));
     const { error } = await admin

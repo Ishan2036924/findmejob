@@ -3,6 +3,7 @@
 // seniority. Realistic enough to exercise the match-scoring agent.
 
 import type { JobRegion } from './region';
+import type { RoleFamily } from '@/lib/ai/schemas/profile';
 
 export type RawJob = {
   source: 'jsearch' | 'greenhouse' | 'lever' | 'ashby';
@@ -14,6 +15,7 @@ export type RawJob = {
   description: string;
   posted_at: string; // ISO
   region: JobRegion;
+  role_family?: RoleFamily | null; // populated by classifier at ingest time
 };
 
 const now = () => new Date().toISOString();
