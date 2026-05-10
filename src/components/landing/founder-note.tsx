@@ -55,7 +55,7 @@ export function FounderNote() {
               href={LINKEDIN_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-white/25 hover:bg-white/10 hover:text-foreground"
+              className="hidden shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-white/25 hover:bg-white/10 hover:text-foreground sm:inline-flex"
             >
               <LinkedinIcon className="size-3.5" />
               Connect on LinkedIn
