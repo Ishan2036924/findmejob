@@ -34,7 +34,7 @@ export function Hero() {
           className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          Now in private beta · India focus, expanding
+          Now in private beta · India + USA
         </motion.div>
 
         <motion.h1
