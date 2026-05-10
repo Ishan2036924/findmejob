@@ -8,3 +8,9 @@ export { FilterPills, type FilterPill, type FilterPillsProps } from './filter-pi
 export { EmptyState, type EmptyStateProps } from './empty-state';
 export { SectionHeader, type SectionHeaderProps } from './section-header';
 export { CompanyAvatar } from './company-avatar';
+export { StickyRail, type StickyRailProps } from './sticky-rail';
+export {
+  StatusBadge,
+  type StatusBadgeProps,
+  type ApplicationStatus as StatusBadgeStatus,
+} from './status-badge';

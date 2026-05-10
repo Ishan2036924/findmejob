@@ -3,7 +3,13 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import {
+  ChevronDown,
+  HelpCircle,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { generateInterviewQuestions } from '@/lib/artifacts/actions';
@@ -37,47 +43,36 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
   const total = output
     ? output.technical.length + output.behavioral.length + output.situational.length
     : 0;
+  const ready = !!output;
 
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-2xl border bg-card/40 p-5 backdrop-blur transition-all',
-        output
+        'flex flex-col gap-2.5 rounded-xl border bg-card/40 p-4 backdrop-blur transition-all',
+        ready
           ? 'border-emerald-400/20 bg-emerald-400/[0.03]'
           : 'border-white/10 hover:border-white/20',
-        expanded && 'sm:col-span-2 lg:col-span-3',
       )}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
-          <HelpCircle className="size-4 text-foreground/80" strokeWidth={1.5} />
+      <div className="flex items-start gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+          <HelpCircle className="size-3.5 text-foreground/80" strokeWidth={1.5} />
         </div>
-        <span
-          className={cn(
-            'rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider',
-            output
-              ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300/90'
-              : 'border-white/10 bg-white/5 text-muted-foreground',
-          )}
-        >
-          {output ? `${total} ready` : 'On demand'}
-        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-medium tracking-tight">Interview questions</h3>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+            {ready ? `${total} questions ready · STAR scaffolds` : '5 technical · 4 behavioral · 3 situational'}
+          </p>
+        </div>
       </div>
 
-      <div>
-        <h3 className="text-sm font-medium tracking-tight">Interview questions</h3>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-          5 technical · 4 behavioral (with STAR scaffolding) · 3 situational. Tied to the JD.
-        </p>
-      </div>
-
-      {!output && (
+      {!ready && (
         <button
           type="button"
           disabled={pending}
           onClick={fire}
           className={cn(
-            'mt-auto inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+            'mt-1 inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
             pending
               ? 'border-white/10 bg-white/5 text-muted-foreground'
               : 'border-foreground/30 bg-foreground/10 text-foreground hover:bg-foreground/20',
@@ -85,7 +80,7 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
         >
           {pending ? (
             <>
-              <Loader2 className="size-3.5 animate-spin" /> Working
+              <Loader2 className="size-3.5 animate-spin" /> Generating
             </>
           ) : (
             <>
@@ -95,14 +90,19 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
         </button>
       )}
 
-      {output && (
-        <div className="mt-auto flex flex-col gap-3">
+      {ready && (
+        <>
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="text-left text-xs italic text-muted-foreground hover:text-foreground"
+            className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-background/40 px-2.5 py-1.5 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            aria-expanded={expanded}
           >
-            {expanded ? '— hide questions —' : `— ${output.meta_summary} (click to expand)`}
+            <span className="line-clamp-1 italic">{output.meta_summary}</span>
+            <ChevronDown
+              className={cn('size-3.5 shrink-0 transition-transform', expanded && 'rotate-180')}
+              strokeWidth={1.5}
+            />
           </button>
 
           <AnimatePresence initial={false}>
@@ -114,9 +114,9 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
                 transition={{ duration: 0.25 }}
                 className="overflow-hidden"
               >
-                <div className="flex flex-col gap-5 rounded-lg border border-white/10 bg-background/40 p-4 text-xs leading-relaxed">
+                <div className="flex flex-col gap-4 rounded-lg border border-white/10 bg-background/40 p-3 text-xs leading-relaxed">
                   <CategoryBlock title="Technical" tone="sky">
-                    <ul className="space-y-3">
+                    <ul className="space-y-2">
                       {output.technical.map((q, i) => (
                         <li key={i}>
                           <p className="font-medium text-foreground/90">{q.question}</p>
@@ -129,11 +129,11 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
                   </CategoryBlock>
 
                   <CategoryBlock title="Behavioral (STAR)" tone="violet">
-                    <ul className="space-y-3">
+                    <ul className="space-y-2">
                       {output.behavioral.map((q, i) => (
                         <li key={i}>
                           <p className="font-medium text-foreground/90">{q.question}</p>
-                          <div className="mt-1 grid grid-cols-1 gap-1 text-[11px] sm:grid-cols-2">
+                          <div className="mt-1 grid grid-cols-1 gap-0.5 text-[10px]">
                             <p>
                               <span className="font-mono text-muted-foreground">S:</span>{' '}
                               {q.star_scaffold.situation}
@@ -157,7 +157,7 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
                   </CategoryBlock>
 
                   <CategoryBlock title="Situational" tone="amber">
-                    <ul className="space-y-3">
+                    <ul className="space-y-2">
                       {output.situational.map((q, i) => (
                         <li key={i}>
                           <p className="font-medium text-foreground/90">{q.question}</p>
@@ -173,10 +173,10 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
             )}
           </AnimatePresence>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <Link
               href={`/applications/${applicationId}/practice`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-foreground transition-colors hover:bg-white/10"
+              className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] text-foreground transition-colors hover:bg-white/10"
             >
               Practice answers →
             </Link>
@@ -184,7 +184,7 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
               type="button"
               disabled={pending}
               onClick={fire}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
             >
               {pending ? (
                 <>
@@ -197,7 +197,7 @@ export function InterviewQuestionsCard({ applicationId, initialOutput }: Props) 
               )}
             </button>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -218,7 +218,7 @@ function CategoryBlock({
     amber: 'text-amber-300/80',
   }[tone];
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       <p className={cn('text-[10px] uppercase tracking-wider', toneClass)}>{title}</p>
       <div className="text-foreground/90">{children}</div>
     </div>

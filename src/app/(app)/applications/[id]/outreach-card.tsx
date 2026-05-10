@@ -3,7 +3,15 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import { Check, Copy, Loader2, RefreshCw, Send, Sparkles } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  Loader2,
+  RefreshCw,
+  Send,
+  Sparkles,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { generateOutreach } from '@/lib/artifacts/actions';
 import type { OutreachOutput } from '@/lib/ai/schemas/outreach';
@@ -53,46 +61,36 @@ export function OutreachCard({ applicationId, initialOutput }: Props) {
     setTimeout(() => setCopiedKey(null), 1800);
   }
 
+  const ready = !!output;
+
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-2xl border bg-card/40 p-5 backdrop-blur transition-all',
-        output
+        'flex flex-col gap-2.5 rounded-xl border bg-card/40 p-4 backdrop-blur transition-all',
+        ready
           ? 'border-emerald-400/20 bg-emerald-400/[0.03]'
           : 'border-white/10 hover:border-white/20',
-        expanded && 'sm:col-span-2 lg:col-span-3',
       )}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
-          <Send className="size-4 text-foreground/80" strokeWidth={1.5} />
+      <div className="flex items-start gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+          <Send className="size-3.5 text-foreground/80" strokeWidth={1.5} />
         </div>
-        <span
-          className={cn(
-            'rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider',
-            output
-              ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300/90'
-              : 'border-white/10 bg-white/5 text-muted-foreground',
-          )}
-        >
-          {output ? '3 ready' : 'On demand'}
-        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-medium tracking-tight">Outreach drafts</h3>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+            Recruiter, hiring manager, referral.
+          </p>
+        </div>
       </div>
 
-      <div>
-        <h3 className="text-sm font-medium tracking-tight">Outreach drafts</h3>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-          Three short messages: recruiter, hiring manager, referral. Edit + paste.
-        </p>
-      </div>
-
-      {!output && (
+      {!ready && (
         <button
           type="button"
           disabled={pending}
           onClick={fire}
           className={cn(
-            'mt-auto inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+            'mt-1 inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
             pending
               ? 'border-white/10 bg-white/5 text-muted-foreground'
               : 'border-foreground/30 bg-foreground/10 text-foreground hover:bg-foreground/20',
@@ -100,7 +98,7 @@ export function OutreachCard({ applicationId, initialOutput }: Props) {
         >
           {pending ? (
             <>
-              <Loader2 className="size-3.5 animate-spin" /> Working
+              <Loader2 className="size-3.5 animate-spin" /> Generating
             </>
           ) : (
             <>
@@ -110,14 +108,19 @@ export function OutreachCard({ applicationId, initialOutput }: Props) {
         </button>
       )}
 
-      {output && (
-        <div className="mt-auto flex flex-col gap-3">
+      {ready && (
+        <>
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="text-left text-xs italic text-muted-foreground hover:text-foreground"
+            className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-background/40 px-2.5 py-1.5 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            aria-expanded={expanded}
           >
-            {expanded ? '— hide drafts —' : `— ${output.meta_summary} (click to expand)`}
+            <span className="line-clamp-1 italic">{output.meta_summary}</span>
+            <ChevronDown
+              className={cn('size-3.5 shrink-0 transition-transform', expanded && 'rotate-180')}
+              strokeWidth={1.5}
+            />
           </button>
 
           <AnimatePresence initial={false}>
@@ -129,7 +132,7 @@ export function OutreachCard({ applicationId, initialOutput }: Props) {
                 transition={{ duration: 0.25 }}
                 className="overflow-hidden"
               >
-                <Tabs defaultValue="recruiter" className="rounded-lg border border-white/10 bg-background/40 p-4">
+                <Tabs defaultValue="recruiter" className="rounded-lg border border-white/10 bg-background/40 p-3">
                   <TabsList className="grid w-full grid-cols-3">
                     {TABS.map((t) => (
                       <TabsTrigger key={t.key} value={t.key} className="text-xs">
@@ -146,17 +149,17 @@ export function OutreachCard({ applicationId, initialOutput }: Props) {
                           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Subject</p>
                           <p className="font-mono text-[10px] text-muted-foreground/60">~{draft.length_words}w</p>
                         </div>
-                        <p className="rounded border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium">
+                        <p className="rounded border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium">
                           {draft.subject}
                         </p>
-                        <p className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">Body</p>
-                        <pre className="whitespace-pre-wrap rounded border border-white/10 bg-white/5 px-3 py-2 font-sans text-xs leading-relaxed text-foreground/90">
+                        <p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">Body</p>
+                        <pre className="whitespace-pre-wrap rounded border border-white/10 bg-white/5 px-2.5 py-1.5 font-sans text-xs leading-relaxed text-foreground/90">
                           {draft.body}
                         </pre>
                         <button
                           type="button"
                           onClick={() => copyDraft(t.key, fullText)}
-                          className="inline-flex items-center gap-1.5 self-start rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-foreground transition-colors hover:bg-white/10"
+                          className="inline-flex items-center gap-1.5 self-start rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-foreground transition-colors hover:bg-white/10"
                         >
                           {copiedKey === t.key ? (
                             <>
@@ -164,7 +167,7 @@ export function OutreachCard({ applicationId, initialOutput }: Props) {
                             </>
                           ) : (
                             <>
-                              <Copy className="size-3" strokeWidth={1.5} /> Copy subject + body
+                              <Copy className="size-3" strokeWidth={1.5} /> Copy
                             </>
                           )}
                         </button>
@@ -180,7 +183,7 @@ export function OutreachCard({ applicationId, initialOutput }: Props) {
             type="button"
             disabled={pending}
             onClick={fire}
-            className="inline-flex items-center gap-1.5 self-start rounded-lg px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
           >
             {pending ? (
               <>
@@ -192,7 +195,7 @@ export function OutreachCard({ applicationId, initialOutput }: Props) {
               </>
             )}
           </button>
-        </div>
+        </>
       )}
     </div>
   );

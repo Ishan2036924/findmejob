@@ -3,7 +3,13 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import { Building2, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import {
+  Building2,
+  ChevronDown,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { generateCompanyBrief } from '@/lib/artifacts/actions';
 import type { CompanyBriefOutput } from '@/lib/ai/schemas/company-brief';
@@ -33,46 +39,36 @@ export function CompanyBriefCard({ applicationId, initialOutput }: Props) {
     });
   }
 
+  const ready = !!output;
+
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-2xl border bg-card/40 p-5 backdrop-blur transition-all',
-        output
+        'flex flex-col gap-2.5 rounded-xl border bg-card/40 p-4 backdrop-blur transition-all',
+        ready
           ? 'border-emerald-400/20 bg-emerald-400/[0.03]'
           : 'border-white/10 hover:border-white/20',
-        expanded && 'sm:col-span-2 lg:col-span-3',
       )}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
-          <Building2 className="size-4 text-foreground/80" strokeWidth={1.5} />
+      <div className="flex items-start gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+          <Building2 className="size-3.5 text-foreground/80" strokeWidth={1.5} />
         </div>
-        <span
-          className={cn(
-            'rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider',
-            output
-              ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300/90'
-              : 'border-white/10 bg-white/5 text-muted-foreground',
-          )}
-        >
-          {output ? 'Ready' : 'On demand'}
-        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-medium tracking-tight">Company brief</h3>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+            Signals, questions to ask, red flags.
+          </p>
+        </div>
       </div>
 
-      <div>
-        <h3 className="text-sm font-medium tracking-tight">About the company</h3>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-          JD-derived signals + culture cues + smart questions to ask + red flags.
-        </p>
-      </div>
-
-      {!output && (
+      {!ready && (
         <button
           type="button"
           disabled={pending}
           onClick={fire}
           className={cn(
-            'mt-auto inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+            'mt-1 inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
             pending
               ? 'border-white/10 bg-white/5 text-muted-foreground'
               : 'border-foreground/30 bg-foreground/10 text-foreground hover:bg-foreground/20',
@@ -80,7 +76,7 @@ export function CompanyBriefCard({ applicationId, initialOutput }: Props) {
         >
           {pending ? (
             <>
-              <Loader2 className="size-3.5 animate-spin" /> Working
+              <Loader2 className="size-3.5 animate-spin" /> Generating
             </>
           ) : (
             <>
@@ -90,14 +86,19 @@ export function CompanyBriefCard({ applicationId, initialOutput }: Props) {
         </button>
       )}
 
-      {output && (
-        <div className="mt-auto flex flex-col gap-3">
+      {ready && (
+        <>
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="text-left text-xs italic text-muted-foreground hover:text-foreground"
+            className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-background/40 px-2.5 py-1.5 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            aria-expanded={expanded}
           >
-            {expanded ? '— hide brief —' : `— ${output.meta_summary} (click to expand)`}
+            <span className="line-clamp-1 italic">{output.meta_summary}</span>
+            <ChevronDown
+              className={cn('size-3.5 shrink-0 transition-transform', expanded && 'rotate-180')}
+              strokeWidth={1.5}
+            />
           </button>
 
           <AnimatePresence initial={false}>
@@ -109,7 +110,7 @@ export function CompanyBriefCard({ applicationId, initialOutput }: Props) {
                 transition={{ duration: 0.25 }}
                 className="overflow-hidden"
               >
-                <div className="flex flex-col gap-4 rounded-lg border border-white/10 bg-background/40 p-4 text-xs leading-relaxed">
+                <div className="flex flex-col gap-3 rounded-lg border border-white/10 bg-background/40 p-3 text-xs leading-relaxed">
                   <Section title="What they do">
                     <p>{output.what_they_do}</p>
                   </Section>
@@ -123,7 +124,7 @@ export function CompanyBriefCard({ applicationId, initialOutput }: Props) {
                     </Section>
                   )}
                   {output.questions_to_ask.length > 0 && (
-                    <Section title="Questions to ask in the interview">
+                    <Section title="Questions to ask">
                       <ul className="ml-4 list-disc space-y-1">
                         {output.questions_to_ask.map((q, i) => (
                           <li key={i}>{q}</li>
@@ -149,7 +150,7 @@ export function CompanyBriefCard({ applicationId, initialOutput }: Props) {
             type="button"
             disabled={pending}
             onClick={fire}
-            className="inline-flex items-center gap-1.5 self-start rounded-lg px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
           >
             {pending ? (
               <>
@@ -161,7 +162,7 @@ export function CompanyBriefCard({ applicationId, initialOutput }: Props) {
               </>
             )}
           </button>
-        </div>
+        </>
       )}
     </div>
   );

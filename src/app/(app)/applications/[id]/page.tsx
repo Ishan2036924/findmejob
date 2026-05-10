@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, ExternalLink, MapPin } from 'lucide-react';
+import { ArrowLeft, ExternalLink, MapPin, MessageSquare } from 'lucide-react';
 import { getApplicationById } from '@/lib/applications/queries';
 import { getCurrentUserProfile, isOnboardingComplete } from '@/lib/profile/queries';
-import { ScoreRing } from '@/components/score-ring';
+import { CompanyAvatar, MatchBadge, StickyRail } from '@/components/ui-kit';
 import { StatusPills } from './status-pills';
 import { NotesEditor } from './notes-editor';
 import { ResumeCard } from './resume-card';
@@ -11,8 +11,11 @@ import { CoverLetterCard } from './cover-letter-card';
 import { CompanyBriefCard } from './company-brief-card';
 import { InterviewQuestionsCard } from './interview-questions-card';
 import { OutreachCard } from './outreach-card';
-import { PracticeCard } from './practice-card';
-import { getLatestTailoredResumeForJob } from '@/lib/resume/queries';
+import { JobDescription } from './job-description';
+import {
+  getLatestTailoredResumeForJob,
+  getResumeById,
+} from '@/lib/resume/queries';
 import { getLatestGenerationsByKind } from '@/lib/applications/generations';
 import { getPracticeSessions } from '@/lib/practice/queries';
 import type { CoverLetterOutput } from '@/lib/ai/schemas/cover-letter';
@@ -51,14 +54,31 @@ export default async function ApplicationDetailPage({
     getPracticeSessions(app.id),
   ]);
 
+  // Pull verifier metadata for the resume (if any) — uses the same query the
+  // resume detail page does, so no new lib code.
+  const tailoredResumeFull = tailoredResume?.id
+    ? await getResumeById(tailoredResume.id)
+    : null;
+  const verifier = tailoredResumeFull?.tailoring_meta?.verifier ?? null;
+  const verifierMeta = verifier
+    ? {
+        score: verifier.score,
+        mustHavesAddressed: verifier.must_haves_addressed.length,
+        mustHavesTotal:
+          verifier.must_haves_addressed.length + verifier.must_haves_missing.length,
+      }
+    : null;
+
   const coverLetter = generations.get('cover_letter')?.output as CoverLetterOutput | undefined;
   const companyBrief = generations.get('company_brief')?.output as CompanyBriefOutput | undefined;
-  const interviewQs = generations.get('interview_questions')?.output as InterviewQuestionsOutput | undefined;
+  const interviewQs = generations.get('interview_questions')?.output as
+    | InterviewQuestionsOutput
+    | undefined;
   const outreach = generations.get('outreach_drafts')?.output as OutreachOutput | undefined;
 
   return (
     <div className="flex flex-col">
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-8 sm:gap-12 sm:px-10 sm:py-12">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 sm:px-8 sm:py-10">
         <Link
           href="/applications"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -67,128 +87,195 @@ export default async function ApplicationDetailPage({
           Back to applications
         </Link>
 
-        {/* Job header */}
-        <section className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-1 flex-col gap-3">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">
-              {app.job.source === 'user_pasted' ? 'You pasted this' : `Source · ${app.job.source}`}
-            </span>
-            <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-              {app.job.title}
-            </h1>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span className="text-foreground">{app.job.company}</span>
-              {app.job.location && (
-                <>
-                  <span className="opacity-40">·</span>
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="size-3.5" strokeWidth={1.5} />
-                    {app.job.location}
-                  </span>
-                </>
-              )}
-              {app.job.posted_at && (
-                <>
-                  <span className="opacity-40">·</span>
-                  <span className="font-mono text-xs opacity-60">
-                    posted {relativeDate(app.job.posted_at)}
-                  </span>
-                </>
-              )}
-              {app.job.source_url && (
-                <>
-                  <span className="opacity-40">·</span>
-                  <a
-                    href={app.job.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-foreground hover:underline"
-                  >
-                    Open posting
-                    <ExternalLink className="size-3" strokeWidth={1.5} />
-                  </a>
-                </>
-              )}
-            </div>
-          </div>
+        {/* Header card */}
+        <section className="rounded-3xl border border-white/10 bg-card/40 p-6 backdrop-blur sm:p-8">
+          <div className="flex flex-col gap-5">
+            {/* Row 1: avatar + title + meta */}
+            <div className="flex items-start gap-4">
+              <CompanyAvatar name={app.job.company} size="lg" className="size-14" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
+                  {app.job.title}
+                </h1>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground/90">{app.job.company}</span>
+                  {app.job.location && (
+                    <>
+                      <span className="opacity-40">·</span>
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="size-3.5" strokeWidth={1.5} />
+                        {app.job.location}
+                      </span>
+                    </>
+                  )}
+                  {app.job.posted_at && (
+                    <>
+                      <span className="opacity-40">·</span>
+                      <span className="font-mono text-xs opacity-60">
+                        posted {relativeDate(app.job.posted_at)}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
 
-          {app.match && (
-            <div className="flex shrink-0 items-center gap-4 rounded-2xl border border-white/10 bg-card/40 p-4 backdrop-blur">
-              <ScoreRing score={app.match.score} size={88} />
-              <div className="hidden max-w-xs sm:block">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Match
-                </span>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-3">
-                  {app.match.reasoning}
-                </p>
+              {/* Match badge top-right (desktop) */}
+              <div className="hidden shrink-0 sm:flex">
+                <MatchBadge score={app.match?.score ?? null} size="lg" />
               </div>
             </div>
-          )}
-        </section>
 
-        {/* Status + notes */}
-        <section className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-card/30 p-4 backdrop-blur sm:p-6">
-          <div className="flex flex-col gap-2">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">Status</span>
-            <StatusPills applicationId={app.id} initialStatus={app.status} />
-          </div>
-          <NotesEditor applicationId={app.id} initialNotes={app.notes} />
-        </section>
+            {/* Row 2: mobile match badge */}
+            <div className="flex items-center gap-2 sm:hidden">
+              <MatchBadge score={app.match?.score ?? null} size="md" />
+            </div>
 
-        {/* Artifacts */}
-        <section className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">
-              Generate per request
-            </span>
-            <h2 className="text-balance text-xl font-semibold tracking-tight">
-              Application artifacts
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Each artifact is generated only when you click. No tokens spent on things you don&apos;t ask for.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <ResumeCard
-              applicationId={app.id}
-              initialResumeId={tailoredResume?.id ?? null}
-            />
-            <CoverLetterCard
-              applicationId={app.id}
-              initialOutput={coverLetter ?? null}
-            />
-            <CompanyBriefCard
-              applicationId={app.id}
-              initialOutput={companyBrief ?? null}
-            />
-            <InterviewQuestionsCard
-              applicationId={app.id}
-              initialOutput={interviewQs ?? null}
-            />
-            <OutreachCard
-              applicationId={app.id}
-              initialOutput={outreach ?? null}
-            />
-            <PracticeCard
-              applicationId={app.id}
-              hasInterviewQuestions={!!interviewQs}
-              sessionCount={practiceSessions.length}
-            />
+            {/* Row 3: actions */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-4">
+              {app.job.source_url && (
+                <a
+                  href={app.job.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-foreground/30 bg-foreground/10 px-3 text-xs font-medium text-foreground transition-colors hover:bg-foreground/20"
+                >
+                  <ExternalLink className="size-3.5" strokeWidth={1.5} />
+                  Open posting
+                </a>
+              )}
+            </div>
+
+            {/* Row 4: status pills */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Status
+              </span>
+              <StatusPills applicationId={app.id} initialStatus={app.status} />
+            </div>
           </div>
         </section>
 
-        {/* Full JD */}
-        <section className="flex flex-col gap-3">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
-            Job description
-          </span>
-          <div className="rounded-2xl border border-white/10 bg-card/30 p-4 backdrop-blur sm:p-6">
-            <pre className="overflow-x-auto whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-foreground/90">
-              {app.job.description}
-            </pre>
+        {/* Two-column: left main + right sticky rail */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          {/* Left main */}
+          <div className="flex flex-col gap-6 lg:col-span-7">
+            {/* Match breakdown */}
+            {app.match && (
+              <section className="rounded-2xl border border-white/10 bg-card/40 p-5 backdrop-blur sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-medium tracking-tight">Why this match</h2>
+                  <MatchBadge score={app.match.score} size="sm" />
+                </div>
+                {app.match.reasoning && (
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                    {app.match.reasoning}
+                  </p>
+                )}
+                {(app.match.strengths.length > 0 || app.match.gaps.length > 0) && (
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {app.match.strengths.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-[10px] uppercase tracking-wider text-emerald-300/80">
+                          Strengths
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {app.match.strengths.slice(0, 3).map((s, i) => (
+                            <span
+                              key={i}
+                              className="rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2 py-0.5 text-[11px] text-emerald-300/90"
+                            >
+                              + {s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {app.match.gaps.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-[10px] uppercase tracking-wider text-amber-300/80">
+                          Gaps
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {app.match.gaps.slice(0, 3).map((g, i) => (
+                            <span
+                              key={i}
+                              className="rounded-full border border-amber-400/20 bg-amber-400/5 px-2 py-0.5 text-[11px] text-amber-300/90"
+                            >
+                              − {g}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* JD body */}
+            <JobDescription
+              description={app.job.description}
+              isPasted={app.job.source === 'user_pasted'}
+            />
+
+            {/* Notes (kept here — still important on detail page) */}
+            <section className="rounded-2xl border border-white/10 bg-card/30 p-5 backdrop-blur sm:p-6">
+              <NotesEditor applicationId={app.id} initialNotes={app.notes} />
+            </section>
           </div>
-        </section>
+
+          {/* Right sticky rail */}
+          <StickyRail className="lg:col-span-5">
+            <div className="flex flex-col gap-3">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                On-demand artifacts
+              </span>
+              <ResumeCard
+                applicationId={app.id}
+                initialResumeId={tailoredResume?.id ?? null}
+                initialVerifier={verifierMeta}
+              />
+              <CoverLetterCard
+                applicationId={app.id}
+                initialOutput={coverLetter ?? null}
+              />
+              <CompanyBriefCard
+                applicationId={app.id}
+                initialOutput={companyBrief ?? null}
+              />
+              <InterviewQuestionsCard
+                applicationId={app.id}
+                initialOutput={interviewQs ?? null}
+              />
+              <OutreachCard applicationId={app.id} initialOutput={outreach ?? null} />
+            </div>
+
+            {/* Practice link */}
+            <Link
+              href={`/applications/${app.id}/practice`}
+              className={
+                'group flex items-center gap-3 rounded-xl border border-indigo-400/20 bg-indigo-400/[0.06] p-4 transition-all hover:border-indigo-400/40 hover:bg-indigo-400/[0.12]'
+              }
+            >
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-indigo-400/30 bg-indigo-400/10">
+                <MessageSquare className="size-4 text-indigo-300" strokeWidth={1.5} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">Practice mode</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {practiceSessions.length > 0
+                    ? `${practiceSessions.length} session${practiceSessions.length === 1 ? '' : 's'} · continue`
+                    : interviewQs
+                      ? 'Type answers, get scored 0–10'
+                      : 'Generate questions first'}
+                </p>
+              </div>
+              <span className="text-xs text-muted-foreground transition-transform group-hover:translate-x-0.5">
+                →
+              </span>
+            </Link>
+          </StickyRail>
+        </div>
       </main>
     </div>
   );

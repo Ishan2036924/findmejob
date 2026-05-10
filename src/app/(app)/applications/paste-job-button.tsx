@@ -52,17 +52,22 @@ export function PasteJobButton() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger>
-        <Button size="lg" className="gap-2">
+        <Button
+          size="lg"
+          className="gap-2 shadow-[0_0_0_0_rgba(99,102,241,0)] transition-shadow hover:shadow-[0_0_24px_-4px_rgba(99,102,241,0.55)]"
+        >
           <Plus className="size-4" strokeWidth={1.5} />
           Add a job
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Add any job to your log</DialogTitle>
+          <DialogTitle className="text-xl tracking-tight">
+            Track any job
+          </DialogTitle>
           <DialogDescription>
-            Paste a link to the posting, or drop in the JD text directly. We&apos;ll extract the
-            structured fields and score it against your profile.
+            Paste a link or drop the JD text. We extract title, company, requirements,
+            and score it against your profile in one shot.
           </DialogDescription>
         </DialogHeader>
 
@@ -121,7 +126,12 @@ export function PasteJobButton() {
           <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
             Cancel
           </Button>
-          <Button type="button" onClick={submit} disabled={pending} className="gap-2">
+          <Button
+            type="button"
+            onClick={submit}
+            disabled={pending}
+            className="gap-2 shadow-[0_0_0_0_rgba(99,102,241,0)] transition-shadow hover:shadow-[0_0_24px_-4px_rgba(99,102,241,0.55)]"
+          >
             {pending ? (
               <>
                 <Loader2 className="size-4 animate-spin" />

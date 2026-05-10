@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Synth grader operates over heterogeneous LLM output JSON; precise types here
+// would balloon without buying anything. Disabled file-wide.
 import { config } from 'dotenv';
 import { resolve, join } from 'path';
 

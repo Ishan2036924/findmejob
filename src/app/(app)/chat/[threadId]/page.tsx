@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getCurrentUserProfile } from '@/lib/profile/queries';
 import { getMessages, getThread, listThreads } from '@/lib/chat/queries';
@@ -45,12 +46,12 @@ export default async function ThreadPage({
               {thread.title}
             </h1>
           </div>
-          <a
+          <Link
             href="/chat"
             className="ml-3 shrink-0 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline lg:hidden"
           >
             All chats
-          </a>
+          </Link>
         </header>
 
         <ChatThread threadId={thread.id} initialMessages={initialMessages} />

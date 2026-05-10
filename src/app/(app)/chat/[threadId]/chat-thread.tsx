@@ -13,6 +13,7 @@ import {
   Loader2,
   Paperclip,
   Send,
+  Sparkles,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -42,6 +43,12 @@ export type ChatThreadProps = {
 
 const ACCEPT = 'image/png,image/jpeg,image/webp,application/pdf';
 
+const STARTER_PROMPTS = [
+  'Show me my best matches today',
+  'What gaps does my resume have for senior roles?',
+  'Generate a cover letter for my top match',
+];
+
 export function ChatThread({ threadId, initialMessages }: ChatThreadProps) {
   const [messages, setMessages] = useState<UIMessage[]>(initialMessages);
   const [input, setInput] = useState('');
@@ -51,6 +58,7 @@ export function ChatThread({ threadId, initialMessages }: ChatThreadProps) {
   >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -68,7 +76,7 @@ export function ChatThread({ threadId, initialMessages }: ChatThreadProps) {
 
   const onPickFiles = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    e.target.value = ''; // allow re-picking same file
+    e.target.value = '';
     if (files.length === 0) return;
 
     for (const file of files) {
@@ -206,37 +214,45 @@ export function ChatThread({ threadId, initialMessages }: ChatThreadProps) {
     }
   };
 
+  const fillStarter = (prompt: string) => {
+    setInput(prompt);
+    textareaRef.current?.focus();
+  };
+
   return (
     <>
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
-        <div className="mx-auto flex max-w-3xl flex-col gap-3">
+        <div className="mx-auto flex max-w-3xl flex-col gap-4">
           {messages.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-card/30 p-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                Ask anything about your job search. I have full context of your
-                applications, scores, and assessment.
-              </p>
+            <div className="flex flex-col items-center gap-6 rounded-2xl border border-dashed border-white/10 bg-card/30 px-6 py-12 text-center sm:py-16">
+              <span className="flex size-12 items-center justify-center rounded-full border border-indigo-400/20 bg-gradient-to-br from-indigo-500/20 to-purple-500/10 text-indigo-300">
+                <Sparkles className="size-5" strokeWidth={1.5} />
+              </span>
+              <div className="flex max-w-md flex-col gap-2">
+                <h2 className="text-balance text-xl font-semibold tracking-tight sm:text-2xl">
+                  Ask anything about your job search
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  I have full context of your applications, scores, gaps, and assessment.
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {STARTER_PROMPTS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => fillStarter(p)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-white/20 hover:bg-card/60 hover:text-foreground"
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
+
           {messages.map((m) => (
-            <div
-              key={m.id}
-              className={cn(
-                'rounded p-4 text-sm leading-relaxed',
-                m.role === 'user'
-                  ? 'ml-auto max-w-[80%] bg-primary/10 text-foreground'
-                  : 'bg-muted/40 text-foreground',
-              )}
-            >
-              <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
-                {m.role}
-              </span>
-              {m.pending && !m.content ? (
-                <p className="text-muted-foreground">Thinking…</p>
-              ) : (
-                <p className="whitespace-pre-wrap">{m.content}</p>
-              )}
-            </div>
+            <MessageBubble key={m.id} message={m} />
           ))}
         </div>
       </div>
@@ -255,7 +271,7 @@ export function ChatThread({ threadId, initialMessages }: ChatThreadProps) {
             </div>
           )}
           <div className="flex items-end gap-2">
-            <div className="flex flex-1 items-end gap-2 rounded-xl border border-white/10 bg-card/40 p-2">
+            <div className="flex flex-1 items-end gap-2 rounded-2xl border border-white/10 bg-card/40 p-2 transition-colors focus-within:border-white/20">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -269,11 +285,12 @@ export function ChatThread({ threadId, initialMessages }: ChatThreadProps) {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isStreaming}
                 aria-label="Attach file"
-                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Paperclip className="size-4" strokeWidth={1.5} />
               </button>
               <textarea
+                ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
@@ -281,25 +298,75 @@ export function ChatThread({ threadId, initialMessages }: ChatThreadProps) {
                 placeholder={
                   isStreaming
                     ? 'Agent is replying…'
-                    : 'Ask about your applications, scores, gaps… (Cmd+Enter to send)'
+                    : 'Ask about your applications, scores, gaps…'
                 }
                 rows={2}
-                className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-12 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
               />
               <button
                 type="button"
                 onClick={() => void send()}
                 disabled={sendDisabled}
                 aria-label="Send"
-                className="inline-flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_0_0_rgba(99,102,241,0)] transition-all hover:bg-primary/90 hover:shadow-[0_0_18px_-2px_rgba(99,102,241,0.6)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
               >
                 <Send className="size-4" strokeWidth={1.5} />
               </button>
             </div>
           </div>
+          <p className="hidden px-1 text-[10px] text-muted-foreground/60 lg:block">
+            <span className="font-mono">Cmd+Enter</span> to send
+          </p>
         </div>
       </footer>
     </>
+  );
+}
+
+function MessageBubble({ message }: { message: UIMessage }) {
+  const isUser = message.role === 'user';
+  const isPendingEmpty = message.pending && !message.content;
+
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-2.5 sm:gap-3',
+        isUser ? 'flex-row-reverse' : 'flex-row',
+      )}
+    >
+      {/* Avatar */}
+      <div
+        className={cn(
+          'flex size-8 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold tracking-tight',
+          isUser
+            ? 'border-indigo-400/30 bg-gradient-to-br from-indigo-500/40 to-purple-500/30 text-foreground'
+            : 'border-white/10 bg-card/60 text-indigo-300',
+        )}
+        aria-hidden
+      >
+        {isUser ? 'You' : <Sparkles className="size-3.5" strokeWidth={1.5} />}
+      </div>
+
+      {/* Bubble */}
+      <div
+        className={cn(
+          'max-w-[80%] rounded-2xl border px-3.5 py-2.5 text-sm leading-relaxed',
+          isUser
+            ? 'rounded-br-md border-primary/20 bg-primary/15 text-foreground'
+            : 'rounded-bl-md border-white/10 bg-card/60 text-foreground',
+        )}
+      >
+        {isPendingEmpty ? (
+          <div className="flex items-center gap-1 py-1" aria-label="Thinking">
+            <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
+            <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]" />
+            <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground/60" />
+          </div>
+        ) : (
+          <p className="whitespace-pre-wrap">{message.content}</p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -319,24 +386,33 @@ function AttachmentPill({
   return (
     <span
       className={cn(
-        'inline-flex max-w-[260px] items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px]',
+        'inline-flex max-w-[260px] items-center gap-2 rounded-lg border bg-card/60 px-2.5 py-1.5 text-[11px]',
         pending.status === 'error'
           ? 'border-red-500/40 bg-red-500/[0.06] text-red-300'
-          : 'border-white/10 bg-white/[0.04] text-muted-foreground',
+          : 'border-white/10 text-foreground',
       )}
       title={pending.status === 'error' ? pending.error : pending.name}
     >
-      {pending.status === 'uploading' ? (
-        <Loader2 className="size-3 animate-spin" strokeWidth={1.5} />
-      ) : (
-        <Icon className="size-3 shrink-0" strokeWidth={1.5} />
-      )}
+      <span
+        className={cn(
+          'flex size-6 shrink-0 items-center justify-center rounded-md',
+          pending.status === 'error'
+            ? 'bg-red-500/10 text-red-300'
+            : 'bg-white/[0.04] text-muted-foreground',
+        )}
+      >
+        {pending.status === 'uploading' ? (
+          <Loader2 className="size-3 animate-spin" strokeWidth={1.5} />
+        ) : (
+          <Icon className="size-3" strokeWidth={1.5} />
+        )}
+      </span>
       <span className="truncate">{pending.name}</span>
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${pending.name}`}
-        className="ml-0.5 inline-flex size-3.5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
+        className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
       >
         <X className="size-3" strokeWidth={1.5} />
       </button>
