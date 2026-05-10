@@ -36,8 +36,8 @@ export default async function ApplicationsPage() {
 
   return (
     <div className="flex flex-col">
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-12 sm:px-10">
-        <div className="flex items-end justify-between gap-6">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-10 sm:py-12">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end sm:gap-6">
           <div className="flex flex-col gap-2">
             <span className="text-xs uppercase tracking-wider text-muted-foreground">
               Your work board
@@ -74,13 +74,13 @@ export default async function ApplicationsPage() {
               <Link
                 key={app.id}
                 href={`/applications/${app.id}`}
-                className="group relative flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-card/50 p-5 backdrop-blur transition-all duration-200 hover:border-white/20 hover:bg-card/70"
+                className="group relative flex flex-col gap-3 rounded-2xl border border-white/10 bg-card/50 p-4 backdrop-blur transition-all duration-200 hover:border-white/20 hover:bg-card/70 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:p-5"
               >
                 <div className="flex min-w-0 flex-col gap-1.5">
                   <h3 className="truncate text-base font-medium tracking-tight">
                     {app.job.title}
                   </h3>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span className="truncate">{app.job.company}</span>
                     {app.job.location && (
                       <>
@@ -97,9 +97,9 @@ export default async function ApplicationsPage() {
                     </span>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
                   {app.match_score !== null && (
-                    <div className="flex flex-col items-end gap-0.5">
+                    <div className="flex flex-col items-start gap-0.5 sm:items-end">
                       <span className="font-mono text-xl tabular-nums leading-none tracking-tight text-foreground/90">
                         {app.match_score}
                       </span>
@@ -118,7 +118,7 @@ export default async function ApplicationsPage() {
                   </span>
                 </div>
                 <ArrowUpRight
-                  className="absolute right-5 bottom-5 size-4 text-muted-foreground/40 opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100"
+                  className="absolute right-4 bottom-4 size-4 text-muted-foreground/40 opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100 sm:right-5 sm:bottom-5"
                   strokeWidth={1.5}
                 />
               </Link>

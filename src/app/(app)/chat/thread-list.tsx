@@ -12,7 +12,7 @@ export function ThreadList({
   activeId?: string;
 }) {
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-r border-white/5">
+    <aside className="flex w-full flex-col border-r border-white/5 lg:w-72 lg:shrink-0">
       <div className="flex items-center justify-between gap-2 border-b border-white/5 px-4 py-3">
         <span className="text-xs uppercase tracking-wider text-muted-foreground">
           Conversations

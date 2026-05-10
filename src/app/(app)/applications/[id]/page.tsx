@@ -58,7 +58,7 @@ export default async function ApplicationDetailPage({
 
   return (
     <div className="flex flex-col">
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-6 py-12 sm:px-10">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-8 sm:gap-12 sm:px-10 sm:py-12">
         <Link
           href="/applications"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -128,7 +128,7 @@ export default async function ApplicationDetailPage({
         </section>
 
         {/* Status + notes */}
-        <section className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-card/30 p-6 backdrop-blur">
+        <section className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-card/30 p-4 backdrop-blur sm:p-6">
           <div className="flex flex-col gap-2">
             <span className="text-xs uppercase tracking-wider text-muted-foreground">Status</span>
             <StatusPills applicationId={app.id} initialStatus={app.status} />
@@ -183,8 +183,8 @@ export default async function ApplicationDetailPage({
           <span className="text-xs uppercase tracking-wider text-muted-foreground">
             Job description
           </span>
-          <div className="rounded-2xl border border-white/10 bg-card/30 p-6 backdrop-blur">
-            <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground/90">
+          <div className="rounded-2xl border border-white/10 bg-card/30 p-4 backdrop-blur sm:p-6">
+            <pre className="overflow-x-auto whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-foreground/90">
               {app.job.description}
             </pre>
           </div>

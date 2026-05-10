@@ -39,7 +39,7 @@ export default async function AnalyticsPage() {
 
   if (empty) {
     return (
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12 sm:px-10">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-10 sm:py-12">
         <PageHeader />
         <div className="rounded-2xl border border-dashed border-white/10 bg-card/30 p-10 text-center backdrop-blur">
           <BarChart3 className="mx-auto size-6 text-muted-foreground/60" strokeWidth={1.5} />
@@ -64,7 +64,7 @@ export default async function AnalyticsPage() {
   }));
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12 sm:px-10">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-10 sm:py-12">
       <PageHeader />
 
       {/* Top stats row */}
@@ -220,7 +220,7 @@ function PageHeader() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-card/40 p-6 backdrop-blur">
+    <section className="rounded-2xl border border-white/10 bg-card/40 p-4 backdrop-blur sm:p-6">
       {children}
     </section>
   );
@@ -245,7 +245,7 @@ function StatCard({
   accent?: 'emerald';
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-card/40 p-5 backdrop-blur">
+    <div className="rounded-2xl border border-white/10 bg-card/40 p-4 backdrop-blur sm:p-5">
       <div
         className={
           accent === 'emerald'

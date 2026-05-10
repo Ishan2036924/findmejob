@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { runTailor } from '@/lib/ai/agents/tailor-agent';
-import { checkArtifactRateLimit } from '@/lib/guardrails/rate-limit';
+import { checkResumeTailorRateLimit } from '@/lib/guardrails/rate-limit';
 import type { ResumeJson } from '@/lib/ai/schemas/profile';
 
 export type GenerateTailoredResumeResult =
@@ -42,7 +42,7 @@ export async function generateTailoredResume(
   } = await supabase.auth.getUser();
   if (!user) redirect('/sign-in');
 
-  const rate = await checkArtifactRateLimit(user.id);
+  const rate = await checkResumeTailorRateLimit(user.id);
   if (!rate.ok) {
     return { ok: false, error: 'daily_limit_reached', message: rate.message };
   }

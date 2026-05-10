@@ -31,7 +31,7 @@ export default async function MemoryPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-end justify-between gap-6">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end sm:gap-6">
         <div className="flex flex-col gap-2">
           <span className="text-xs uppercase tracking-wider text-muted-foreground">
             Agent memory

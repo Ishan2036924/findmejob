@@ -30,10 +30,10 @@ export function JobCard({ job }: { job: FeedJob }) {
       rel="noopener noreferrer"
       className="group relative flex flex-col gap-4 rounded-2xl border border-white/10 bg-card/50 p-5 backdrop-blur transition-all duration-200 hover:border-white/20 hover:bg-card/70"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
         <div className="flex flex-col gap-1.5 min-w-0">
           <h3 className="truncate text-base font-medium tracking-tight">{job.title}</h3>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <span className="truncate">{job.company}</span>
             {job.location && (
               <>

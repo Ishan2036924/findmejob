@@ -22,7 +22,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col">
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-6 py-12 sm:px-10">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8 sm:px-10 sm:py-12">
         <div className="flex flex-col gap-3">
           <span className="text-xs uppercase tracking-wider text-muted-foreground">
             Welcome back

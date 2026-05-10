@@ -57,7 +57,7 @@ export async function checkChatRateLimit(profileId: string): Promise<RateLimitRe
  * (default 10). Counts every row in `generations` for the user.
  */
 export async function checkArtifactRateLimit(profileId: string): Promise<RateLimitResult> {
-  const cap = Number(process.env.ARTIFACT_DAILY_CAP ?? 10);
+  const cap = Number(process.env.ARTIFACT_DAILY_CAP ?? 8);
 
   const supabase = await createClient();
   const { count, error } = await supabase
@@ -86,7 +86,7 @@ export async function checkArtifactRateLimit(profileId: string): Promise<RateLim
  * (default 20).
  */
 export async function checkPracticeRateLimit(profileId: string): Promise<RateLimitResult> {
-  const cap = Number(process.env.PRACTICE_DAILY_CAP ?? 20);
+  const cap = Number(process.env.PRACTICE_DAILY_CAP ?? 10);
 
   const supabase = await createClient();
 
@@ -168,7 +168,7 @@ export async function checkAttachmentRateLimit(profileId: string): Promise<RateL
  * `PASTE_JD_DAILY_CAP` (default 20).
  */
 export async function checkPasteJdRateLimit(profileId: string): Promise<RateLimitResult> {
-  const cap = Number(process.env.PASTE_JD_DAILY_CAP ?? 20);
+  const cap = Number(process.env.PASTE_JD_DAILY_CAP ?? 10);
 
   const supabase = await createClient();
   // Pasted JDs create an application row whose linked job has source='user_pasted'.
@@ -221,6 +221,42 @@ export async function checkRefreshRateLimit(profileId: string): Promise<RateLimi
       ok: false,
       reason: 'daily_refresh_cap_reached',
       message: 'Feed already refreshed today. Daily cron also pushes new jobs nightly.',
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Resume tailoring is the single most expensive action (multi-step Sonnet
+ * pipeline). Pulled out of `checkArtifactRateLimit` so a user can still
+ * generate cover letters / briefs / etc. on a day they already used both
+ * tailor calls.
+ *
+ * Counts rows in `generations` today where `kind = 'resume_tailoring'`, blocks
+ * if over `RESUME_TAILOR_DAILY_CAP` (default 2).
+ */
+export async function checkResumeTailorRateLimit(profileId: string): Promise<RateLimitResult> {
+  const cap = Number(process.env.RESUME_TAILOR_DAILY_CAP ?? 2);
+
+  const supabase = await createClient();
+
+  const { count, error } = await supabase
+    .from('generations')
+    .select('id', { count: 'exact', head: true })
+    .eq('profile_id', profileId)
+    .eq('kind', 'resume_tailoring')
+    .gte('created_at', startOfUtcDayIso());
+
+  if (error) {
+    console.error('[checkResumeTailorRateLimit]', error);
+    return { ok: true };
+  }
+
+  if ((count ?? 0) >= cap) {
+    return {
+      ok: false,
+      reason: 'daily_resume_tailor_cap_reached',
+      message: `Resume tailoring limit reached for today (${cap}/day). Resets at midnight UTC.`,
     };
   }
   return { ok: true };

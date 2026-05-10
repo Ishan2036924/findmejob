@@ -208,7 +208,7 @@ export function ChatThread({ threadId, initialMessages }: ChatThreadProps) {
 
   return (
     <>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-8">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto flex max-w-3xl flex-col gap-3">
           {messages.length === 0 && (
             <div className="rounded-2xl border border-dashed border-white/10 bg-card/30 p-8 text-center">
@@ -241,7 +241,7 @@ export function ChatThread({ threadId, initialMessages }: ChatThreadProps) {
         </div>
       </div>
 
-      <footer className="border-t border-white/5 px-6 py-4">
+      <footer className="border-t border-white/5 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
         <div className="mx-auto flex max-w-3xl flex-col gap-2">
           {pendingAttachments.length > 0 && (
             <div className="flex flex-wrap gap-1.5">

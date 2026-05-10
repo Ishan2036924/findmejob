@@ -15,10 +15,10 @@ export default async function ChatIndexPage() {
   const threads = await listThreads();
 
   return (
-    <div className="flex h-screen">
+    <div className="flex min-h-[calc(100dvh-3rem)] lg:h-screen lg:min-h-0">
       <ThreadList threads={threads} />
 
-      <section className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+      <section className="hidden flex-1 flex-col items-center justify-center px-6 py-12 lg:flex">
         <div className="flex max-w-md flex-col items-center text-center">
           <span className="flex size-12 items-center justify-center rounded-full border border-white/10 bg-card/40 text-muted-foreground">
             <MessageSquare className="size-5" strokeWidth={1.5} />

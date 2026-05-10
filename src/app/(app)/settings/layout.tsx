@@ -6,8 +6,8 @@ export default function SettingsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-5xl gap-8 px-6 py-12 sm:px-10">
-      <aside className="w-48 shrink-0">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:flex-row sm:gap-8 sm:px-10 sm:py-12">
+      <aside className="w-full shrink-0 sm:w-48">
         <span className="px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
           Settings
         </span>

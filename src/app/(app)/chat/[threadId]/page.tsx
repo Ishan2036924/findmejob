@@ -30,19 +30,27 @@ export default async function ThreadPage({
   }));
 
   return (
-    <div className="flex h-screen">
-      <ThreadList threads={threads} activeId={thread.id} />
+    <div className="flex h-[calc(100dvh-3rem)] lg:h-screen">
+      <div className="hidden lg:flex">
+        <ThreadList threads={threads} activeId={thread.id} />
+      </div>
 
-      <section className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-white/5 px-6 py-3">
-          <div className="flex flex-col">
+      <section className="flex flex-1 flex-col min-w-0">
+        <header className="flex items-center justify-between border-b border-white/5 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 flex-col">
             <span className="text-xs uppercase tracking-wider text-muted-foreground">
               Conversation
             </span>
-            <h1 className="text-base font-medium tracking-tight">
+            <h1 className="truncate text-base font-medium tracking-tight">
               {thread.title}
             </h1>
           </div>
+          <a
+            href="/chat"
+            className="ml-3 shrink-0 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline lg:hidden"
+          >
+            All chats
+          </a>
         </header>
 
         <ChatThread threadId={thread.id} initialMessages={initialMessages} />

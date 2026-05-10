@@ -297,7 +297,6 @@ export function OnboardingFlow({
         )}
       </AnimatePresence>
 
-      {/* Navigation */}
       <div className="flex items-center justify-between border-t border-white/5 pt-6">
         <Button
           type="button"
