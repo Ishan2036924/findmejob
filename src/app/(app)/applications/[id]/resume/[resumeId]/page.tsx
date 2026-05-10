@@ -51,21 +51,107 @@ export default async function TailoredResumePage({
           set destination to <span className="text-foreground">Save as PDF</span>. Layout is
           ATS-friendly single-column.
         </p>
-        {resume.source === 'ai_tailored' && (
-          <div className="mb-6 w-full max-w-[8.5in] rounded-2xl border border-white/10 bg-card/40 p-4 print:hidden">
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Tailoring summary
-            </span>
-            <p className="mt-2 text-sm text-foreground">
-              {resume.tailoring_meta?.meta_summary ?? 'No tailoring metadata available.'}
-            </p>
-            {resume.tailoring_meta?.applied != null && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {resume.tailoring_meta.applied} edit operations applied
+        {resume.source === 'ai_tailored' && (() => {
+          const meta = resume.tailoring_meta;
+          const verifier = meta?.verifier ?? null;
+          const score = verifier?.score ?? null;
+          const scoreColor =
+            score == null
+              ? 'text-muted-foreground'
+              : score >= 80
+              ? 'text-emerald-400'
+              : score >= 70
+              ? 'text-amber-400'
+              : 'text-rose-400';
+          const addressed = verifier?.must_haves_addressed ?? [];
+          const missing = verifier?.must_haves_missing ?? [];
+          const halluc = verifier?.hallucination_risks ?? [];
+
+          return (
+            <div className="mb-6 w-full max-w-[8.5in] space-y-3 rounded-2xl border border-white/10 bg-card/40 p-4 print:hidden">
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Tailoring summary
+                </span>
+                {score != null && (
+                  <div className="text-xs text-muted-foreground">
+                    Tailor verifier score:{' '}
+                    <span className={`font-mono text-sm font-semibold ${scoreColor}`}>
+                      {score}
+                    </span>
+                    /100
+                    {meta?.retried ? (
+                      <span className="ml-2 rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                        retried
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-sm text-foreground">
+                {meta?.meta_summary ?? 'No tailoring metadata available.'}
               </p>
-            )}
-          </div>
-        )}
+
+              {meta?.applied != null && (
+                <p className="text-xs text-muted-foreground">
+                  {meta.applied} edit operations applied
+                </p>
+              )}
+
+              {(addressed.length > 0 || missing.length > 0) && (
+                <div className="grid gap-3 pt-1 sm:grid-cols-2">
+                  {addressed.length > 0 && (
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        Must-haves addressed
+                      </p>
+                      <ul className="mt-1 space-y-1 text-xs text-emerald-300/90">
+                        {addressed.map((m, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span aria-hidden>✓</span>
+                            <span>{m}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {missing.length > 0 && (
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        Must-haves still missing
+                      </p>
+                      <ul className="mt-1 space-y-1 text-xs text-amber-300/90">
+                        {missing.map((m, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span aria-hidden>✗</span>
+                            <span>{m}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {halluc.length > 0 && (
+                <div className="rounded-md border border-rose-500/30 bg-rose-500/10 p-3">
+                  <p className="text-[11px] uppercase tracking-wider text-rose-300">
+                    Review claims — verifier flagged possible fabrication
+                  </p>
+                  <ul className="mt-1 space-y-1 text-xs text-rose-200/90">
+                    {halluc.map((h, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span aria-hidden>!</span>
+                        <span>{h}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <ResumeDocument resume={resume.resume_json} />
         <p className="mt-4 max-w-[8.5in] self-center text-center font-mono text-[10px] text-muted-foreground/60 print:hidden">
           {resume.source} · generated {new Date(resume.created_at).toLocaleString()}

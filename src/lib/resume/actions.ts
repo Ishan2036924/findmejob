@@ -4,13 +4,23 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { runTailor } from '@/lib/ai/agents/tailor-agent';
-import { applyTailorOutput } from './edit-ops';
 import { checkArtifactRateLimit } from '@/lib/guardrails/rate-limit';
 import type { ResumeJson } from '@/lib/ai/schemas/profile';
 
 export type GenerateTailoredResumeResult =
-  | { ok: true; resumeId: string; appliedOps: number; skippedOps: number }
+  | {
+      ok: true;
+      resumeId: string;
+      appliedOps: number;
+      skippedOps: number;
+      verifierScore: number;
+      verifierScoreLow: boolean;
+      retried: boolean;
+    }
   | { ok: false; error: string; message?: string };
+
+/** Below this we still ship the resume but tag it as low-confidence in the response. */
+const VERIFIER_LOW_THRESHOLD = 50;
 
 /**
  * Generate a tailored resume for an application.
@@ -99,11 +109,11 @@ export async function generateTailoredResume(
     };
   }
 
-  // 5. Apply edit_ops
-  const { resume: tailoredResume, applied, skipped } = applyTailorOutput(
-    baseResume,
-    tailorResult.output,
-  );
+  // 5. Pull applied tailored resume from the agent (v3 pipeline applies internally
+  //    so the verifier can score the tailored artifact).
+  const tailoredResume = tailorResult.tailored_resume;
+  const applied = tailorResult.applied;
+  const skipped = tailorResult.skipped;
 
   if (skipped.length > 0) {
     console.warn('[generateTailoredResume] some edit_ops skipped', {
@@ -149,14 +159,28 @@ export async function generateTailoredResume(
     return { ok: false, error: resumeErr?.message ?? 'Failed to save tailored resume.' };
   }
 
-  // 7. Insert generation row tying back to the application
+  const verifierScore = tailorResult.verifier.score;
+  const verifierScoreLow = verifierScore < VERIFIER_LOW_THRESHOLD;
+
+  // 7. Insert generation row tying back to the application. The `output` jsonb
+  //    holds the full v3 multi-step meta so queries can replay it on the
+  //    resume detail page (verifier badge + must-have gaps).
   const { error: genErr } = await supabase.from('generations').insert({
     profile_id: user.id,
     job_id: job.id,
     application_id: applicationId,
     kind: 'resume_tailoring',
     status: 'success',
-    output: { meta_summary: tailorResult.output.meta_summary, applied, skipped: skipped.length },
+    output: {
+      meta_summary: tailorResult.output.meta_summary,
+      applied,
+      skipped: skipped.length,
+      jd_analysis: tailorResult.jd_analysis,
+      verifier: tailorResult.verifier,
+      retried: tailorResult.retried,
+      empty_retried: tailorResult.empty_retried,
+      verifier_score_low: verifierScoreLow,
+    },
     resume_id: resumeRow.id,
     model: tailorResult.model,
     prompt_tokens: tailorResult.usage.inputTokens,
@@ -174,7 +198,7 @@ export async function generateTailoredResume(
   revalidatePath(`/applications/${applicationId}/resume/${resumeRow.id}`);
 
   console.info(
-    `[tailor] applied=${applied} skipped=${skipped.length} job=${job.id} app=${applicationId}`,
+    `[tailor] applied=${applied} skipped=${skipped.length} verifier=${verifierScore} retried=${tailorResult.retried} job=${job.id} app=${applicationId}`,
   );
 
   return {
@@ -182,5 +206,8 @@ export async function generateTailoredResume(
     resumeId: resumeRow.id,
     appliedOps: applied,
     skippedOps: skipped.length,
+    verifierScore,
+    verifierScoreLow,
+    retried: tailorResult.retried,
   };
 }

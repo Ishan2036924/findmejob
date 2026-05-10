@@ -1,7 +1,7 @@
 import type { ResumeJson, RoleFamily, Seniority } from '@/lib/ai/schemas/profile';
 
 export type SynthProfile = {
-  user_key: 'a' | 'b' | 'c';
+  user_key: 'a' | 'b' | 'c' | 'd';
   email: string;
   target_role_family: RoleFamily;
   target_seniority: Seniority;
@@ -360,6 +360,112 @@ export const SYNTH_PROFILES: SynthProfile[] = [
         },
       ],
       certifications: ['Coursera — Google UX Design Professional Certificate (2023)'],
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // User D — Entry-level Data Analyst, Bangalore, ~1y at a small Indian fintech.
+  // Light portfolio, tier-2 BTech CS, deliberately not over-polished.
+  // ---------------------------------------------------------------------------
+  {
+    user_key: 'd',
+    email: 'synth-d@findmejob.test',
+    target_role_family: 'data_ml',
+    target_seniority: 'entry',
+    target_location: 'Bangalore',
+    resume_json: {
+      contact: {
+        name: 'Karthik Reddy',
+        email: 'karthik.reddy.synth@findmejob.test',
+        phone: '+91 99012 34567',
+        location: 'Bangalore, Karnataka, India',
+        links: [
+          { label: 'LinkedIn', url: 'https://linkedin.com/in/karthikreddy-synth' },
+          { label: 'GitHub', url: 'https://github.com/karthikreddy-synth' },
+        ],
+      },
+      summary:
+        'Entry-level data analyst with about a year of experience at a small Bangalore fintech, comfortable with SQL, Python (pandas), and Tableau. Looking for a junior data analyst role on a team with senior analysts I can learn from. Open to BI / product analytics tracks.',
+      experience: [
+        {
+          title: 'Junior Data Analyst',
+          company: 'Paywise (small Indian fintech, ~40 people)',
+          location: 'Bangalore, India',
+          start_date: '2025-07',
+          end_date: null,
+          bullets: [
+            'Owned the weekly sales-ops dashboard in Tableau (8 charts, 4 stakeholders); cut report-prep time from ~3 hours every Monday to ~20 minutes by replacing CSV exports with a Postgres view + scheduled refresh.',
+            'Wrote ~30 SQL queries against the production Postgres replica for ad-hoc questions from the sales and ops teams; documented the 8 most-asked queries in a shared Notion page.',
+            'Built a basic monthly cohort retention chart in Python (pandas + matplotlib) for the founder; surfaced a retention dip in the ICICI-onboarded cohort that led to a small UX fix.',
+          ],
+        },
+        {
+          title: 'Data Analyst Intern',
+          company: 'Paywise',
+          location: 'Bangalore, India',
+          start_date: '2024-12',
+          end_date: '2025-06',
+          bullets: [
+            'Cleaned and joined ~6 months of payments + support-ticket data in Python (pandas); produced a one-pager on top 3 friction points in the refund flow.',
+            'Helped the senior analyst migrate 4 Excel-based reports to Google Sheets with IMPORTRANGE + QUERY; reduced manual copy-paste errors flagged in weekly standups.',
+            'Sat in on 6 sales-ops calls to understand what numbers the team actually used; rewrote the dashboard column labels based on that feedback.',
+          ],
+        },
+      ],
+      education: [
+        {
+          degree: 'B.Tech Computer Science and Engineering',
+          institution: 'Reva University, Bangalore',
+          start_date: '2020-08',
+          end_date: '2024-06',
+          bullets: [
+            'CGPA: 7.4/10. Coursework: DBMS, Data Structures, Statistics for Engineers, Intro to Machine Learning.',
+            'Final-year project: customer churn prediction on a public telecom dataset (logistic regression + random forest) — 81% accuracy on held-out set.',
+          ],
+        },
+      ],
+      projects: [
+        {
+          name: 'Sales-ops Tableau dashboard (work, anonymized writeup)',
+          link: 'https://github.com/karthikreddy-synth/salesops-dashboard-writeup',
+          bullets: [
+            'CSV-driven Tableau dashboard for the sales-ops team at Paywise (anonymized writeup of the production version).',
+            'Documents the 5 charts, the underlying SQL, and the 2 iterations after stakeholder feedback.',
+          ],
+        },
+        {
+          name: 'College churn-prediction notebook',
+          link: 'https://github.com/karthikreddy-synth/telecom-churn-mini',
+          bullets: [
+            'Final-year project notebook: pandas EDA + sklearn logistic regression and random forest on a public telecom churn dataset.',
+            'Walks through feature engineering (tenure buckets, contract type one-hot) and a simple ROC comparison.',
+          ],
+        },
+      ],
+      skills: [
+        {
+          category: 'Languages & query',
+          items: ['SQL (Postgres)', 'Python', 'Excel / Google Sheets formulas'],
+        },
+        {
+          category: 'Libraries & tools',
+          items: ['pandas', 'NumPy', 'matplotlib', 'scikit-learn (basic)', 'Tableau', 'Looker Studio (basic)'],
+        },
+        {
+          category: 'Stats & analytics',
+          items: [
+            'Descriptive statistics',
+            'Cohort analysis (basic)',
+            'A/B test reading (basic)',
+            'Funnel analysis',
+          ],
+        },
+        {
+          category: 'Domain exposure',
+          items: ['Indian fintech (payments + onboarding)', 'Sales-ops reporting'],
+        },
+      ],
+      certifications: ['Coursera — Google Data Analytics Professional Certificate (2024)'],
     },
   },
 ];

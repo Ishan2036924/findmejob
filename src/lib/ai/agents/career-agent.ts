@@ -34,6 +34,11 @@ import { pasteJdTextTool } from '../tools/paste-jd-text';
 import { refreshFeedTool } from '../tools/refresh-feed';
 import { updateApplicationStatusTool } from '../tools/update-application-status';
 import { getPastedJdDetailTool } from '../tools/get-pasted-jd-detail';
+import { updateProfileTargetsTool } from '../tools/update-profile-targets';
+import { listFeedJobsTool } from '../tools/list-feed-jobs';
+import { saveFeedJobTool } from '../tools/save-feed-job';
+import { parseAttachmentAsResumeTool } from '../tools/parse-attachment-as-resume';
+import { commitResumeReplacementTool } from '../tools/commit-resume-replacement';
 
 import { distillMemories } from './memory-distiller';
 
@@ -253,6 +258,11 @@ export async function careerAgent({
       refresh_feed: refreshFeedTool,
       update_application_status: updateApplicationStatusTool,
       get_pasted_jd_detail: getPastedJdDetailTool,
+      update_profile_targets: updateProfileTargetsTool,
+      list_feed_jobs: listFeedJobsTool,
+      save_feed_job: saveFeedJobTool,
+      parse_attachment_as_resume: parseAttachmentAsResumeTool,
+      commit_resume_replacement: commitResumeReplacementTool,
     },
     stopWhen: stepCountIs(8),
     onFinish: async ({ text, usage }) => {

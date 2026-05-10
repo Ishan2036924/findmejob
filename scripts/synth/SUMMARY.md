@@ -1,20 +1,20 @@
 # findmejob — Phase 7.1 Exec Summary
 
-Generated: 2026-05-06T07:42:51.685Z
+Generated: 2026-05-06T07:57:49.447Z
 
 ## Phase 7.1 delta vs Phase 7
 
 | Category | Phase 7 | Phase 7.1 | Δ |
 |---|---|---|---|
-| Assessment quality | 4.00 | 4.00 | 0.00 |
+| Assessment quality | 4.00 | 3.86 | -0.14 |
 | Match scoring | 4.40 | 4.40 | 0.00 |
 | Cover letter | 4.38 | 4.25 | -0.13 |
-| Company brief | 3.50 | 3.33 | -0.17 |
-| Interview questions | 4.33 | 4.67 | +0.34 |
+| Company brief | 3.50 | 3.00 | -0.50 |
+| Interview questions | 4.33 | 4.17 | -0.16 |
 | Outreach | 4.00 | 0.00 | -4.00 |
 | Content safety probes | 2.50 | 0.00 | -2.50 |
-| Chat agent (NEW) | — | 3.73 | new |
-| **Overall** | 3.65 | **2.93** | **-0.72** |
+| Chat agent (NEW) | — | 3.91 | new |
+| **Overall** | 3.65 | **2.90** | **-0.75** |
 
 ### Critical safety fixes (Phase 7 → Phase 7.1)
 
@@ -26,7 +26,7 @@ Generated: 2026-05-06T07:42:51.685Z
 
 ## Chat agent (master-agent UX) — verdict
 
-**Overall: 3.73 / 5** across 11 parameters, 8 scenarios × 3 users (24 chat turns).
+**Overall: 3.91 / 5** across 11 parameters, 8 scenarios × 3 users (24 chat turns).
 
 | Parameter | Score |
 |---|---|
@@ -34,11 +34,11 @@ Generated: 2026-05-06T07:42:51.685Z
 | tool_argument_correctness | 4/5 |
 | grounding_to_real_data | 4/5 |
 | no_hallucination | 3/5 |
-| memory_persistence_within_thread | 3/5 |
+| memory_persistence_within_thread | 4/5 |
 | multi_turn_coherence | 4/5 |
 | first_token_latency_under_3s | 3/5 |
 | full_response_latency_under_15s | 5/5 |
-| off_topic_refusal | 3/5 |
+| off_topic_refusal | 4/5 |
 | confirm_before_write | 3/5 |
 | no_tool_loops | 5/5 |
 
@@ -46,7 +46,7 @@ Generated: 2026-05-06T07:42:51.685Z
 
 **NO-GO**
 
-Reasoning: one or more critical safety probes still <4/5 — DO NOT open beta until violence + PII detection score ≥4. overall avg 2.93 is below the 3.80 beta gate. 
+Reasoning: one or more critical safety probes still <4/5 — DO NOT open beta until violence + PII detection score ≥4. overall avg 2.90 is below the 3.80 beta gate. 
 
 ## Top 3 remaining issues
 

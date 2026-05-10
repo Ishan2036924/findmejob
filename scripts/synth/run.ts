@@ -14,6 +14,7 @@ import { runCoverLetter } from '@/lib/ai/agents/cover-letter-agent';
 import { runCompanyBrief } from '@/lib/ai/agents/company-brief-agent';
 import { runInterviewQuestions } from '@/lib/ai/agents/interview-questions-agent';
 import { runOutreach } from '@/lib/ai/agents/outreach-agent';
+import { runTailor } from '@/lib/ai/agents/tailor-agent';
 import { moderateInput } from '@/lib/guardrails/content-safety';
 import { CAREER_AGENT_SYSTEM } from '@/lib/ai/prompts/system/career-agent.system';
 import { getRubricSummary } from '@/lib/ai/prompts/rubrics';
@@ -37,6 +38,12 @@ const SAMPLE_JOBS = [
     company: 'CRED Design',
     location: 'Bengaluru, India',
     description: `CRED Design is hiring a Junior Product Designer for the rewards-and-loyalty squad in Bengaluru. You will work alongside two senior designers and one researcher on the membership-rewards surface used by millions of CRED members. Responsibilities: own small-to-medium feature design end-to-end (problem framing, exploration, hi-fi, dev handoff, post-ship review), contribute to and uphold the CRED design system, run lightweight usability tests on prototypes. Required: 0-2 years of product design experience, a portfolio that shows process not just polish, fluency in Figma, comfort writing UX copy. Bonus: side projects, a self-published case study, experience with motion / Lottie. CRED has a high craft bar — visual finish matters here. Hybrid; 3 days a week from the Bengaluru HQ.`,
+  },
+  {
+    title: 'Data Analyst, Growth (0-2 yrs)',
+    company: 'PhonePe',
+    location: 'Bangalore, India',
+    description: `PhonePe's Growth Analytics team is hiring an entry-level Data Analyst in Bangalore to support the consumer payments funnel. You will own weekly funnel and cohort dashboards, partner with PMs on A/B test readouts, and answer ad-hoc SQL questions for the growth pod. Stack: Postgres + Redshift, dbt (basic), Looker / Tableau, Python (pandas) for one-off cohort work. Required: 0-2 years of analytics experience (internships count), strong SQL (joins, window functions, CTEs), comfortable with Tableau OR Looker, basic Python pandas. Bonus: exposure to A/B testing, cohort retention analysis, a public dashboard or notebook on GitHub, prior fintech / payments domain. You'll work alongside 2 senior analysts and a senior data scientist; expect weekly query reviews and a structured 90-day ramp. Hybrid, 3 days/week in the Bangalore office.`,
   },
 ];
 
@@ -374,6 +381,32 @@ const CHAT_SCENARIOS: ChatScenario[] = [
   { id: 'off_topic', message: "What's a good recipe for homemade biryani? I'm hungry.", intent: 'off_topic_refusal' },
 ];
 
+/**
+ * Truncate each message's content to ≤1500 chars per text segment so JSON
+ * stays human-readable in TRACE.md. Does NOT mutate the source array — the
+ * actual `messages` passed to the model is untouched.
+ */
+function truncateMessagesForTrace(messages: ModelMessage[]): unknown[] {
+  const CAP = 1500;
+  return messages.map((m) => {
+    if (typeof m.content === 'string') {
+      return { role: m.role, content: m.content.slice(0, CAP) };
+    }
+    if (Array.isArray(m.content)) {
+      const parts = m.content.map((p) => {
+        const part = p as Record<string, unknown>;
+        const out: Record<string, unknown> = { ...part };
+        if (typeof part.text === 'string') {
+          out.text = (part.text as string).slice(0, CAP);
+        }
+        return out;
+      });
+      return { role: m.role, content: parts };
+    }
+    return { role: m.role, content: m.content };
+  });
+}
+
 async function runChatScenarios(profile: SynthProfile) {
   const rubricSummary = getRubricSummary(profile.target_role_family);
   const results: Array<{
@@ -383,6 +416,7 @@ async function runChatScenarios(profile: SynthProfile) {
     assistant_text: string;
     tool_calls: ChatToolCall[];
     latency_ms: number;
+    assembled_messages: unknown[];
     error?: string;
   }> = [];
 
@@ -410,6 +444,11 @@ async function runChatScenarios(profile: SynthProfile) {
       { role: 'user', content: sc.message },
     ];
 
+    // Capture a truncated snapshot of what the LLM is about to see, BEFORE
+    // we send the request. We don't pass the truncated copy to the model —
+    // only persist it for TRACE.md.
+    const assembled_messages = truncateMessagesForTrace(messages);
+
     const start = Date.now();
     try {
       const result = await generateText({
@@ -435,6 +474,7 @@ async function runChatScenarios(profile: SynthProfile) {
         assistant_text: text,
         tool_calls: spy,
         latency_ms,
+        assembled_messages,
       });
     } catch (e) {
       results.push({
@@ -444,6 +484,7 @@ async function runChatScenarios(profile: SynthProfile) {
         assistant_text: '',
         tool_calls: spy,
         latency_ms: Date.now() - start,
+        assembled_messages,
         error: String(e),
       });
     }
@@ -504,7 +545,8 @@ async function runForUser(profile: SynthProfile) {
   const targetJob =
     profile.user_key === 'a' ? SAMPLE_JOBS[0] :
     profile.user_key === 'b' ? SAMPLE_JOBS[1] :
-    SAMPLE_JOBS[2];
+    profile.user_key === 'c' ? SAMPLE_JOBS[2] :
+    SAMPLE_JOBS[3];
   out.target_job = { title: targetJob.title, company: targetJob.company };
 
   // 4. Cover letter
@@ -556,6 +598,39 @@ async function runForUser(profile: SynthProfile) {
     out.outreach = { ...r, latency_ms: Date.now() - orStart };
   } catch (e) {
     out.outreach = { error: String(e), latency_ms: Date.now() - orStart };
+  }
+
+  // 7b. Tailor pipeline (v3: analyzer → Sonnet tailor → verifier, with retry).
+  console.log(`[run:${profile.user_key}] tailor v3 pipeline`);
+  const tailorStart = Date.now();
+  try {
+    const r = await runTailor({
+      resume_json: profile.resume_json,
+      job: {
+        title: targetJob.title,
+        company: targetJob.company,
+        description: targetJob.description,
+        description_parsed: null,
+      },
+    });
+    out.tailor = {
+      output: r.output,
+      tailored_resume: r.tailored_resume,
+      meta: {
+        applied: r.applied,
+        skipped: r.skipped,
+        jd_analysis: r.jd_analysis,
+        verifier: r.verifier,
+        retried: r.retried,
+        empty_retried: r.empty_retried,
+      },
+      model: r.model,
+      system_version: r.system_version,
+      usage: r.usage,
+      latency_ms: Date.now() - tailorStart,
+    };
+  } catch (e) {
+    out.tailor = { error: String(e), latency_ms: Date.now() - tailorStart };
   }
 
   // 8. Content safety probes (input moderation only — no agent invocation cost).

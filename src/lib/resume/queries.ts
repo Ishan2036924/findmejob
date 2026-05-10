@@ -1,6 +1,19 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import type { ResumeJson } from '@/lib/ai/schemas/profile';
+import type { JdAnalysis } from '@/lib/ai/schemas/jd-analysis';
+import type { TailorVerification } from '@/lib/ai/schemas/tailor-verification';
+
+export type TailoringMeta = {
+  meta_summary: string | null;
+  applied: number | null;
+  /** v3 pipeline: upstream JD analysis used to ground the tailor. */
+  jd_analysis: JdAnalysis | null;
+  /** v3 pipeline: verifier output (score + missing must_haves + hallucination risks). */
+  verifier: TailorVerification | null;
+  /** True when verifier-driven retry fired (score<70 on first pass). */
+  retried: boolean | null;
+};
 
 export type TailoredResumeRow = {
   id: string;
@@ -13,11 +26,17 @@ export type TailoredResumeRow = {
   compile_error: string | null;
   created_at: string;
   /** Tailoring delta info pulled from the linked generations row, if any. */
-  tailoring_meta?: {
-    meta_summary: string | null;
-    applied: number | null;
-  } | null;
+  tailoring_meta?: TailoringMeta | null;
 };
+
+/** Narrow shape of `generations.output` we care about for the tailoring meta. */
+type GenerationOutput = {
+  meta_summary?: string;
+  applied?: number;
+  jd_analysis?: JdAnalysis;
+  verifier?: TailorVerification;
+  retried?: boolean;
+} | null;
 
 export async function getResumeById(id: string): Promise<TailoredResumeRow | null> {
   const supabase = await createClient();
@@ -36,8 +55,9 @@ export async function getResumeById(id: string): Promise<TailoredResumeRow | nul
   if (!resume) return null;
 
   // Best-effort lookup of the most recent matching tailoring generation row.
-  // Generation rows store `resume_id` + an `output` jsonb with meta_summary + applied.
-  let tailoring_meta: TailoredResumeRow['tailoring_meta'] = null;
+  // Generation rows store `resume_id` + an `output` jsonb that (post v3) carries
+  // meta_summary + applied + jd_analysis + verifier + retried.
+  let tailoring_meta: TailoringMeta | null = null;
   if (resume.source === 'ai_tailored') {
     const { data: gen } = await supabase
       .from('generations')
@@ -47,12 +67,15 @@ export async function getResumeById(id: string): Promise<TailoredResumeRow | nul
       .eq('kind', 'resume_tailoring')
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle<{ output: { meta_summary?: string; applied?: number } | null }>();
+      .maybeSingle<{ output: GenerationOutput }>();
 
     if (gen?.output) {
       tailoring_meta = {
         meta_summary: gen.output.meta_summary ?? null,
         applied: typeof gen.output.applied === 'number' ? gen.output.applied : null,
+        jd_analysis: gen.output.jd_analysis ?? null,
+        verifier: gen.output.verifier ?? null,
+        retried: typeof gen.output.retried === 'boolean' ? gen.output.retried : null,
       };
     }
   }

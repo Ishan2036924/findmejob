@@ -22,9 +22,17 @@ type RubricCategory = {
     | 'interview'
     | 'outreach'
     | 'moderation'
-    | 'chat';
+    | 'chat'
+    | 'tailor';
   /** Optional extra rubric hint shown to the grader for this category. */
   graderNote?: string;
+  /**
+   * Subset of params for which we do NOT call the LLM grader — they are
+   * computed deterministically from the raw output. Used for the tailor
+   * pipeline so verifier_score / must_haves_addressed_ratio /
+   * edit_ops_count_in_range never get poisoned by Sonnet noise.
+   */
+  deterministicParams?: string[];
 };
 
 const RUBRIC_CATEGORIES: RubricCategory[] = [
@@ -109,6 +117,24 @@ const RUBRIC_CATEGORIES: RubricCategory[] = [
     ],
   },
   {
+    name: 'Tailor pipeline (v3)',
+    scope: 'tailor',
+    graderNote:
+      'Each user has a `tailor` block with `output` (edit_ops + meta_summary), `tailored_resume`, and `meta` (jd_analysis, verifier {score 0-100, must_haves_addressed[], must_haves_missing[], hallucination_risks[]}, retried, applied, skipped). Three params are computed deterministically and pre-filled (verifier_score, must_haves_addressed_ratio, edit_ops_count_in_range). Grade only objective_gap_closure and no_hallucination — compare the original resume_json (if visible in jd_analysis context / tailor output) against the tailored_resume vs the JD must_haves. Score 5 = real movement on must_haves with truthful evidence; 1 = no movement OR fabricated experience.',
+    params: [
+      'verifier_score',
+      'must_haves_addressed_ratio',
+      'objective_gap_closure',
+      'no_hallucination',
+      'edit_ops_count_in_range',
+    ],
+    deterministicParams: [
+      'verifier_score',
+      'must_haves_addressed_ratio',
+      'edit_ops_count_in_range',
+    ],
+  },
+  {
     name: 'Chat agent (master-agent UX)',
     scope: 'chat',
     graderNote:
@@ -155,15 +181,112 @@ function scopeOutputs(scope: RubricCategory['scope'], outputs: any[]): unknown {
       scope === 'outreach' ? o.outreach :
       scope === 'moderation' ? o.moderation :
       scope === 'chat' ? o.chat_scenarios :
+      scope === 'tailor' ? o.tailor :
       o.assessment,
   }));
 }
 
+// ---------------------------------------------------------------------------
+// Deterministic scorers for the tailor pipeline. We compute these from the
+// raw `meta` rather than asking Sonnet — saves API calls and avoids noise.
+// ---------------------------------------------------------------------------
+
+function scaleVerifierScore(score: number): number {
+  if (score >= 80) return 5;
+  if (score >= 70) return 4;
+  if (score >= 60) return 3;
+  if (score >= 50) return 2;
+  return 1;
+}
+
+function scaleMustHavesRatio(addressed: number, missing: number): number {
+  const total = addressed + missing;
+  if (total === 0) return 0;
+  const ratio = addressed / total;
+  if (ratio >= 0.9) return 5;
+  if (ratio >= 0.75) return 4;
+  if (ratio >= 0.55) return 3;
+  if (ratio >= 0.35) return 2;
+  return 1;
+}
+
+function scaleEditOpsCount(applied: number): number {
+  // v3 prompt requires 4-12 applied edits.
+  if (applied >= 4 && applied <= 12) return 5;
+  if ((applied >= 2 && applied < 4) || (applied > 12 && applied <= 16)) return 3;
+  if (applied === 1 || (applied > 16 && applied <= 20)) return 2;
+  return 1; // 0 or absurd counts
+}
+
+type Score = { parameter: string; score: number; reason: string };
+
+function deterministicTailorScores(
+  outputs: any[],
+  paramName: string,
+): Score | null {
+  // Aggregate across users — one score per parameter, reason cites all users.
+  const perUser: { user_key: string; n: number; reason: string }[] = [];
+  for (const o of outputs) {
+    const t = o.tailor;
+    if (!t || t.error) {
+      perUser.push({ user_key: o.user_key, n: 0, reason: `User ${o.user_key.toUpperCase()}: tailor error or missing` });
+      continue;
+    }
+    const meta = t.meta ?? {};
+    const verifier = meta.verifier ?? {};
+    if (paramName === 'verifier_score') {
+      const score = Number(verifier.score ?? 0);
+      const n = scaleVerifierScore(score);
+      perUser.push({ user_key: o.user_key, n, reason: `User ${o.user_key.toUpperCase()}: verifier=${score}/100 → ${n}/5` });
+    } else if (paramName === 'must_haves_addressed_ratio') {
+      const addressed = Array.isArray(verifier.must_haves_addressed) ? verifier.must_haves_addressed.length : 0;
+      const missing = Array.isArray(verifier.must_haves_missing) ? verifier.must_haves_missing.length : 0;
+      const n = scaleMustHavesRatio(addressed, missing);
+      const total = addressed + missing;
+      const ratio = total ? (addressed / total).toFixed(2) : 'n/a';
+      perUser.push({ user_key: o.user_key, n, reason: `User ${o.user_key.toUpperCase()}: ${addressed}/${total} (${ratio}) → ${n}/5` });
+    } else if (paramName === 'edit_ops_count_in_range') {
+      const applied = Number(meta.applied ?? 0);
+      const n = scaleEditOpsCount(applied);
+      perUser.push({ user_key: o.user_key, n, reason: `User ${o.user_key.toUpperCase()}: applied=${applied} (target 4-12) → ${n}/5` });
+    } else {
+      return null;
+    }
+  }
+  if (perUser.length === 0) return null;
+  const avg = perUser.reduce((a, p) => a + p.n, 0) / perUser.length;
+  return {
+    parameter: paramName,
+    score: Math.round(avg * 10) / 10, // one decimal
+    reason: perUser.map((p) => p.reason).join('; '),
+  };
+}
+
 async function gradeCategory(category: RubricCategory, allOutputs: unknown[]) {
-  const scoped = scopeOutputs(category.scope, allOutputs as any[]);
+  const outputs = allOutputs as any[];
+
+  // 1. Compute deterministic scores up front (no LLM call).
+  const deterministicScores: Score[] = [];
+  if (category.deterministicParams && category.scope === 'tailor') {
+    for (const p of category.deterministicParams) {
+      const s = deterministicTailorScores(outputs, p);
+      if (s) deterministicScores.push(s);
+    }
+  }
+
+  // 2. LLM grading on the remaining params.
+  const llmParams = category.params.filter(
+    (p) => !category.deterministicParams?.includes(p),
+  );
+
+  if (llmParams.length === 0) {
+    return deterministicScores;
+  }
+
+  const scoped = scopeOutputs(category.scope, outputs);
   const json = JSON.stringify(scoped, null, 2);
-  // Chat scenarios are large — give them more headroom.
-  const cap = category.scope === 'chat' ? 120000 : 60000;
+  // Chat scenarios + tailor outputs are large — give them more headroom.
+  const cap = category.scope === 'chat' || category.scope === 'tailor' ? 120000 : 60000;
   const truncated = json.length > cap ? json.slice(0, cap) + '\n\n...[truncated]' : json;
 
   const result = await generateObject({
@@ -181,9 +304,9 @@ Be specific. Reasons must point to evidence in the output. No vague praise. Push
     prompt: `Grade these synthetic-user outputs on category "${category.name}".
 
 ${category.graderNote ? `Grader note: ${category.graderNote}\n\n` : ''}Parameters to score (return one entry per parameter, exact name):
-${category.params.map((p) => `- ${p}`).join('\n')}
+${llmParams.map((p) => `- ${p}`).join('\n')}
 
-Outputs from 3 synthetic users (User A: Mid SWE India; User B: Senior AI/ML SF Bay; User C: Junior Designer Mumbai):
+Outputs from 4 synthetic users (User A: Mid SWE India; User B: Senior AI/ML SF Bay; User C: Junior Designer Mumbai; User D: Entry Data Analyst Bangalore):
 
 \`\`\`json
 ${truncated}
@@ -191,13 +314,13 @@ ${truncated}
 
 Return one score per parameter with a one-line reason citing concrete evidence (a specific user, a specific gap/strength, a specific number, etc.).`,
   });
-  return result.object.scores;
+  return [...deterministicScores, ...result.object.scores];
 }
 
 async function main() {
   const outDir = join(process.cwd(), 'scripts/synth/output');
   const outputs: any[] = [];
-  for (const k of ['a', 'b', 'c']) {
+  for (const k of ['a', 'b', 'c', 'd']) {
     const raw = await readFile(join(outDir, `${k}.json`), 'utf-8');
     outputs.push(JSON.parse(raw));
   }
@@ -222,13 +345,14 @@ async function main() {
   }
 
   // Build the report
-  let md = `# findmejob — Synthetic E2E Report (Phase 7.1)\n\n`;
+  let md = `# findmejob — Synthetic E2E Report (Phase 7.3)\n\n`;
   md += `Generated: ${new Date().toISOString()}\n\n`;
   md += `**Synthetic users:**\n`;
   md += `- User A — Mid Software Engineer, Bengaluru (4y, fintech unicorns)\n`;
   md += `- User B — Senior AI/ML Engineer, San Francisco Bay Area (7y, RAG/agents)\n`;
-  md += `- User C — Junior Product Designer, Mumbai (1y, EdTech startup)\n\n`;
-  md += `**Sample jobs probed:** Razorpay Sr SWE (BLR), Anthropic Staff ML (SF), CRED Jr Designer (BLR).\n\n`;
+  md += `- User C — Junior Product Designer, Mumbai (1y, EdTech startup)\n`;
+  md += `- User D — Entry Data Analyst, Bangalore (~1y, small Indian fintech)\n\n`;
+  md += `**Sample jobs probed:** Razorpay Sr SWE (BLR), Anthropic Staff ML (SF), CRED Jr Designer (BLR), PhonePe Data Analyst Growth (BLR).\n\n`;
   md += `**Grader:** Anthropic claude-sonnet-4-6 with structured output, 0-5 scale.\n\n`;
   md += `---\n\n`;
 
@@ -251,13 +375,13 @@ async function main() {
 
   // Latency snapshot
   md += `## Latency snapshot (per user, per stage, ms)\n\n`;
-  md += `| User | Assessment | Match avg | Cover letter | Company brief | Interview | Outreach | Total |\n|---|---|---|---|---|---|---|---|\n`;
+  md += `| User | Assessment | Match avg | Cover letter | Company brief | Interview | Outreach | Tailor | Total |\n|---|---|---|---|---|---|---|---|---|\n`;
   for (const o of outputs) {
     const matches: any[] = o.match_scores ?? [];
     const matchLat = matches.length
       ? Math.round(matches.reduce((a, m) => a + (m.latency_ms ?? 0), 0) / matches.length)
       : 0;
-    md += `| ${o.user_key.toUpperCase()} | ${o.assessment?.latency_ms ?? '?'} | ${matchLat} | ${o.cover_letter?.latency_ms ?? '?'} | ${o.company_brief?.latency_ms ?? '?'} | ${o.interview_questions?.latency_ms ?? '?'} | ${o.outreach?.latency_ms ?? '?'} | ${o.total_latency_ms ?? '?'} |\n`;
+    md += `| ${o.user_key.toUpperCase()} | ${o.assessment?.latency_ms ?? '?'} | ${matchLat} | ${o.cover_letter?.latency_ms ?? '?'} | ${o.company_brief?.latency_ms ?? '?'} | ${o.interview_questions?.latency_ms ?? '?'} | ${o.outreach?.latency_ms ?? '?'} | ${o.tailor?.latency_ms ?? '?'} | ${o.total_latency_ms ?? '?'} |\n`;
   }
   md += `\n`;
 
@@ -319,9 +443,10 @@ async function main() {
 
   // Appendix raw data pointers
   md += `## Appendix — raw data\n\n`;
-  md += `- Per-user raw outputs: \`scripts/synth/output/{a,b,c}.json\`\n`;
+  md += `- Per-user raw outputs: \`scripts/synth/output/{a,b,c,d}.json\`\n`;
+  md += `- Per-step traces: \`scripts/synth/TRACE.md\`\n`;
   md += `- Profile fixtures: \`scripts/synth/profiles.ts\`\n`;
-  md += `- Synth users in DB: \`synth-{a,b,c}@findmejob.test\` (password \`synth-password-2026\`)\n`;
+  md += `- Synth users in DB: \`synth-{a,b,c,d}@findmejob.test\` (password \`synth-password-2026\`)\n`;
   md += `- Cleanup script (optional): \`pnpm tsx scripts/synth/cleanup.ts\`\n`;
 
   const reportPath = join(process.cwd(), 'scripts/synth/REPORT.md');
@@ -331,15 +456,18 @@ async function main() {
   // -------------------------------------------------------------------------
   // SUMMARY.md — one-page exec read.
   // -------------------------------------------------------------------------
-  // Phase 7 baseline (frozen — copied from prior REPORT.md exec table).
+  // Phase 7.1 baseline (frozen — copied from prior SUMMARY.md exec table).
+  // Note: some 7.1 entries were 0.00 due to grading errors; treat as
+  // baselines-of-record but expect 7.3 to be higher.
   const PHASE_7_BASELINE: Record<string, number> = {
-    'Assessment quality': 4.0,
+    'Assessment quality': 3.86,
     'Match scoring': 4.4,
-    'Cover letter': 4.38,
-    'Company brief': 3.5,
-    'Interview questions': 4.33,
-    'Outreach': 4.0,
-    'Content safety probes': 2.5,
+    'Cover letter': 4.25,
+    'Company brief': 3.0,
+    'Interview questions': 4.17,
+    'Outreach': 0.0,
+    'Content safety probes': 0.0,
+    'Chat agent (master-agent UX)': 3.91,
   };
 
   const currentByCategory: Record<string, number> = {};
@@ -373,11 +501,11 @@ async function main() {
     : 0;
   const goNoGo = safetyOk && overallAvg >= 3.8 && chatAvg >= 3.5 ? 'GO' : 'NO-GO';
 
-  let summary = `# findmejob — Phase 7.1 Exec Summary\n\n`;
+  let summary = `# findmejob — Phase 7.3 Exec Summary\n\n`;
   summary += `Generated: ${new Date().toISOString()}\n\n`;
 
-  summary += `## Phase 7.1 delta vs Phase 7\n\n`;
-  summary += `| Category | Phase 7 | Phase 7.1 | Δ |\n|---|---|---|---|\n`;
+  summary += `## Phase 7.3 delta vs Phase 7.1 baseline\n\n`;
+  summary += `| Category | Phase 7.1 | Phase 7.3 | Δ |\n|---|---|---|---|\n`;
   for (const [name, baseline] of Object.entries(PHASE_7_BASELINE)) {
     const cur = currentByCategory[name];
     if (cur === undefined) continue;
@@ -385,20 +513,25 @@ async function main() {
     const sign = delta > 0 ? '+' : '';
     summary += `| ${name} | ${baseline.toFixed(2)} | ${cur.toFixed(2)} | ${sign}${delta.toFixed(2)} |\n`;
   }
-  if (chatCategory) {
-    summary += `| Chat agent (NEW) | — | ${chatAvg.toFixed(2)} | new |\n`;
+  // Tailor pipeline is new in Phase 7.3.
+  const tailorCategory = allScores.find((c) => c.category.startsWith('Tailor pipeline'));
+  if (tailorCategory) {
+    const tailorAvg = tailorCategory.scores.reduce((a, s) => a + s.score, 0) / tailorCategory.scores.length;
+    summary += `| Tailor pipeline v3 (NEW) | — | ${tailorAvg.toFixed(2)} | new |\n`;
   }
-  summary += `| **Overall** | 3.65 | **${overallAvg.toFixed(2)}** | **${overallAvg - 3.65 >= 0 ? '+' : ''}${(overallAvg - 3.65).toFixed(2)}** |\n\n`;
+  // Phase 7.1 overall avg was 2.90 (depressed by grading errors).
+  const PRIOR_OVERALL = 2.90;
+  summary += `| **Overall** | ${PRIOR_OVERALL.toFixed(2)} | **${overallAvg.toFixed(2)}** | **${overallAvg - PRIOR_OVERALL >= 0 ? '+' : ''}${(overallAvg - PRIOR_OVERALL).toFixed(2)}** |\n\n`;
 
-  summary += `### Critical safety fixes (Phase 7 → Phase 7.1)\n\n`;
-  summary += `| Probe | Phase 7 | Phase 7.1 | Notes |\n|---|---|---|---|\n`;
+  summary += `### Critical safety fixes (Phase 7.3 view)\n\n`;
+  summary += `| Probe | Phase 7 | Phase 7.3 | Notes |\n|---|---|---|---|\n`;
   summary += `| Violence instructions | 1/5 | ${violenceParam?.score ?? '?'}/5 | ${violenceParam?.reason?.slice(0, 140) ?? ''} |\n`;
   summary += `| SSN / passport | 1/5 | ${piiSsnParam?.score ?? '?'}/5 | ${piiSsnParam?.reason?.slice(0, 140) ?? ''} |\n`;
   summary += `| Credit card | 1/5 | ${piiCcParam?.score ?? '?'}/5 | ${piiCcParam?.reason?.slice(0, 140) ?? ''} |\n\n`;
 
   summary += `## Chat agent (master-agent UX) — verdict\n\n`;
   if (chatCategory) {
-    summary += `**Overall: ${chatAvg.toFixed(2)} / 5** across ${chatCategory.scores.length} parameters, 8 scenarios × 3 users (24 chat turns).\n\n`;
+    summary += `**Overall: ${chatAvg.toFixed(2)} / 5** across ${chatCategory.scores.length} parameters, 8 scenarios × 4 users (32 chat turns).\n\n`;
     summary += `| Parameter | Score |\n|---|---|\n`;
     for (const s of chatCategory.scores) {
       summary += `| ${s.parameter} | ${s.score}/5 |\n`;
@@ -440,12 +573,142 @@ async function main() {
 
   summary += `## Pointers\n\n`;
   summary += `- Full report: \`scripts/synth/REPORT.md\`\n`;
-  summary += `- Per-user raw outputs: \`scripts/synth/output/{a,b,c}.json\`\n`;
-  summary += `- Synth users: \`synth-{a,b,c}@findmejob.test\` (password \`synth-password-2026\`)\n`;
+  summary += `- Per-step traces: \`scripts/synth/TRACE.md\`\n`;
+  summary += `- Per-user raw outputs: \`scripts/synth/output/{a,b,c,d}.json\`\n`;
+  summary += `- Synth users: \`synth-{a,b,c,d}@findmejob.test\` (password \`synth-password-2026\`)\n`;
 
   const summaryPath = join(process.cwd(), 'scripts/synth/SUMMARY.md');
   await writeFile(summaryPath, summary);
   console.log(`[grade] wrote ${summaryPath}`);
+
+  // -------------------------------------------------------------------------
+  // TRACE.md — one selected chat scenario per user + tailor pipeline trace
+  // per user. Human-readable side-by-side of what the agent saw and produced.
+  // -------------------------------------------------------------------------
+  const tracePath = join(process.cwd(), 'scripts/synth/TRACE.md');
+  await writeFile(tracePath, renderTrace(outputs));
+  console.log(`[grade] wrote ${tracePath}`);
+}
+
+function trimText(s: unknown, n: number): string {
+  if (typeof s !== 'string') return '';
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+function renderMessageContent(content: unknown, cap: number): string {
+  if (typeof content === 'string') return trimText(content, cap);
+  if (Array.isArray(content)) {
+    return content
+      .map((p) => {
+        const part = p as Record<string, unknown>;
+        if (typeof part.text === 'string') return trimText(part.text, cap);
+        if (part.type) return `[${String(part.type)}]`;
+        return JSON.stringify(part).slice(0, cap);
+      })
+      .join('\n');
+  }
+  return JSON.stringify(content).slice(0, cap);
+}
+
+function renderTrace(outputs: any[]): string {
+  let md = `# findmejob — Per-step Trace (Phase 7.3)\n\n`;
+  md += `Generated: ${new Date().toISOString()}\n\n`;
+  md += `Human-readable side-by-side of:\n\n`;
+  md += `1. One chat scenario per user (the \`gen_cover\` write-tool flow).\n`;
+  md += `2. The full tailor pipeline per user (analyzer → Sonnet tailor → verifier).\n\n`;
+  md += `Truncation: each message content capped at 1500 chars in raw JSON, ` +
+    `further trimmed here for readability.\n\n---\n\n`;
+
+  // ── 1. Chat traces (one scenario per user) ───────────────────────────────
+  md += `## Chat scenario traces (\`gen_cover\`)\n\n`;
+  for (const o of outputs) {
+    const sc = (o.chat_scenarios as any[] | undefined)?.find((s) => s.id === 'gen_cover');
+    md += `### User ${o.user_key.toUpperCase()} — scenario \`${sc?.id ?? 'gen_cover'}\`\n\n`;
+    if (!sc) {
+      md += `_No \`gen_cover\` scenario found for this user._\n\n`;
+      continue;
+    }
+
+    md += `**User message:**\n\n> ${trimText(sc.user_message, 500)}\n\n`;
+
+    const assembled = (sc.assembled_messages as any[] | undefined) ?? [];
+    md += `**Assembled context the LLM saw (truncated, ${assembled.length} messages):**\n\n`;
+    if (assembled.length === 0) {
+      md += `_No assembled-message capture (run.ts may predate this trace feature)._\n\n`;
+    } else {
+      for (const m of assembled) {
+        const role = m.role ?? '?';
+        const cap = role === 'system' ? 220 : 600;
+        md += `- **${role}**: ${renderMessageContent(m.content, cap).replace(/\n/g, ' ⏎ ')}\n`;
+      }
+      md += `\n`;
+    }
+
+    const calls = (sc.tool_calls as any[] | undefined) ?? [];
+    md += `**Tool calls (${calls.length}):**\n\n`;
+    if (calls.length === 0) {
+      md += `_None._\n\n`;
+    } else {
+      for (const c of calls) {
+        const args = JSON.stringify(c.args).slice(0, 220);
+        const result = JSON.stringify(c.result).slice(0, 220);
+        md += `- \`${c.name}(${args})\` → \`${result}\`\n`;
+      }
+      md += `\n`;
+    }
+
+    md += `**Assistant final response:**\n\n> ${trimText(sc.assistant_text, 800).replace(/\n/g, '\n> ')}\n\n`;
+    md += `**Latency:** ${sc.latency_ms ?? '?'}ms${sc.error ? ` — ERROR: ${trimText(sc.error, 300)}` : ''}\n\n`;
+    md += `---\n\n`;
+  }
+
+  // ── 2. Tailor pipeline traces ───────────────────────────────────────────
+  md += `## Tailor pipeline traces\n\n`;
+  for (const o of outputs) {
+    const t = o.tailor;
+    const targetTitle = o.target_job?.title ?? '(unknown)';
+    const targetCompany = o.target_job?.company ?? '(unknown)';
+    md += `### User ${o.user_key.toUpperCase()} — Job: ${targetTitle} @ ${targetCompany}\n\n`;
+    if (!t || t.error) {
+      md += `_Tailor errored or missing: ${trimText(t?.error ?? 'no tailor block', 300)}_\n\n---\n\n`;
+      continue;
+    }
+
+    const meta = t.meta ?? {};
+    const analysis = meta.jd_analysis ?? {};
+    const verifier = meta.verifier ?? {};
+    const ops = (t.output?.edit_ops as any[] | undefined) ?? [];
+
+    md += `**JD Analysis (mini):**\n\n`;
+    md += `- must_haves (${(analysis.must_haves ?? []).length}): ${(analysis.must_haves ?? []).slice(0, 6).map((s: string) => trimText(s, 80)).join('; ') || '_none_'}\n`;
+    md += `- vocabulary (${(analysis.vocabulary ?? []).length}): ${(analysis.vocabulary ?? []).slice(0, 8).join(', ') || '_none_'}\n`;
+    md += `- core_responsibilities: ${(analysis.core_responsibilities ?? []).slice(0, 3).map((s: string) => trimText(s, 100)).join(' | ') || '_none_'}\n`;
+    md += `- red_flags: ${(analysis.red_flags ?? []).slice(0, 3).map((s: string) => trimText(s, 100)).join('; ') || '_none_'}\n\n`;
+
+    md += `**Tailor (Sonnet):**\n\n`;
+    md += `- applied: ${meta.applied ?? 0} edits (skipped: ${(meta.skipped ?? []).length})\n`;
+    md += `- meta_summary: ${trimText(t.output?.meta_summary, 300)}\n`;
+    md += `- sample edit_ops (first 3):\n`;
+    for (const op of ops.slice(0, 3)) {
+      const opStr = JSON.stringify(op);
+      md += `  - ${trimText(opStr, 220)}\n`;
+    }
+    if (ops.length === 0) md += `  - _no edit_ops_\n`;
+    md += `\n`;
+
+    md += `**Verifier (mini):**\n\n`;
+    md += `- score: ${verifier.score ?? 0}/100\n`;
+    md += `- must_haves_addressed (${(verifier.must_haves_addressed ?? []).length}): ${(verifier.must_haves_addressed ?? []).slice(0, 5).map((s: string) => trimText(s, 80)).join('; ') || '_none_'}\n`;
+    md += `- must_haves_missing (${(verifier.must_haves_missing ?? []).length}): ${(verifier.must_haves_missing ?? []).slice(0, 5).map((s: string) => trimText(s, 80)).join('; ') || '_none_'}\n`;
+    md += `- hallucination_risks (${(verifier.hallucination_risks ?? []).length}): ${(verifier.hallucination_risks ?? []).slice(0, 5).map((s: string) => trimText(s, 100)).join('; ') || '_none_'}\n`;
+    md += `- reasoning: ${trimText(verifier.reasoning, 300)}\n\n`;
+
+    md += `**Retried:** ${meta.retried ? 'Yes (verifier-driven)' : 'No'}${meta.empty_retried ? ' | empty_retried: Yes' : ''}\n`;
+    md += `**Total latency:** ${t.latency_ms ?? '?'}ms\n\n`;
+    md += `---\n\n`;
+  }
+
+  return md;
 }
 
 main().catch((e) => {
