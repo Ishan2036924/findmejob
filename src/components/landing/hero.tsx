@@ -34,7 +34,7 @@ export function Hero() {
           className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          Now in private beta — India focus
+          Now in private beta · India focus, expanding
         </motion.div>
 
         <motion.h1
@@ -43,7 +43,7 @@ export function Hero() {
           transition={{ duration: 0.6, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
           className="mt-8 text-balance text-5xl font-semibold tracking-tight sm:text-6xl"
         >
-          Your career, <span className="text-muted-foreground">read honestly.</span>
+          An AI career agent that <span className="text-muted-foreground">actually knows you.</span>
         </motion.h1>
 
         <motion.p
@@ -52,7 +52,7 @@ export function Hero() {
           transition={{ duration: 0.6, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-6 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg"
         >
-          A candid, rubric-grounded profile assessment. Verified job listings filtered for legitimacy. One-click tailored resumes per role. No flattery.
+          Not another chatbot. findmejob has access to your resume, your applications, every match score, every artifact you&rsquo;ve generated. From one chat, it can assess you candidly, tailor your resume, draft cover letters, track your pipeline, and push back on bad ideas.
         </motion.p>
 
         <motion.div
@@ -69,10 +69,10 @@ export function Hero() {
             <ArrowRight className="ml-1 size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
           </Link>
           <Link
-            href="/sign-in"
+            href="#compare"
             className={cn(buttonVariants({ variant: 'ghost', size: 'lg' }), 'min-w-40 h-11 px-6 text-base')}
           >
-            Sign in
+            How it&rsquo;s different
           </Link>
         </motion.div>
       </div>

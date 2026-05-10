@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { Hero } from '@/components/landing/hero';
+import { Comparison } from '@/components/landing/comparison';
 import { Features } from '@/components/landing/features';
+import { Roadmap } from '@/components/landing/roadmap';
+import { FounderNote } from '@/components/landing/founder-note';
 
 export default function HomePage() {
   return (
@@ -29,12 +32,15 @@ export default function HomePage() {
       </header>
 
       <Hero />
+      <Comparison />
       <Features />
+      <Roadmap />
+      <FounderNote />
 
       <footer className="mt-auto border-t border-white/5 px-6 py-8 sm:px-10">
         <div className="mx-auto flex max-w-6xl items-center justify-between text-xs text-muted-foreground">
           <span className="font-mono">findmejob</span>
-          <span>India-first, expanding global</span>
+          <span>Solo student build · India + USA</span>
         </div>
       </footer>
     </main>
